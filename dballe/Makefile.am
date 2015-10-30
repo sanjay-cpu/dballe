@@ -96,6 +96,7 @@ nobase_dist_dballeinclude_HEADERS = \
 	db/defs.h \
 	db/db.h \
 	db/trace.h \
+	db/mem/station.h \
 	db/mem/repinfo.h \
 	db/mem/cursor.h \
 	db/mem/db.h \
@@ -243,6 +244,7 @@ libdballe_la_SOURCES = \
 	db/sqlite/datav6.cc \
 	db/sqlite/attrv6.cc \
 	db/sqlite/driver.cc \
+	db/mem/station.cc \
 	db/mem/repinfo.cc \
 	db/mem/cursor.cc \
 	db/mem/db.cc \
@@ -386,6 +388,7 @@ test_dballe_SOURCES = \
 	db/db-query-summary-test.cc \
 	db/db-import-test.cc \
 	db/db-export-test.cc \
+	db/mem/station-test.cc \
 	db/mem/repinfo-test.cc \
 	db/mem/cursor-test.cc \
 	db/summary-test.cc \
