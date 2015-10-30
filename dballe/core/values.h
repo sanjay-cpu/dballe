@@ -11,13 +11,18 @@ namespace dballe {
 
 struct Station
 {
-    std::string report;
     int ana_id = MISSING_INT;
+    std::string report;
     Coords coords;
     Ident ident;
 
     Station() = default;
+    Station(size_t ana_id, const std::string& report, const Coords& coords, const Ident& ident)
+        : ana_id(ana_id), report(report), coords(coords), ident(ident) {}
+    Station(size_t ana_id, std::string&& report, const Coords& coords, Ident&& ident)
+        : ana_id(ana_id), report(std::move(report)), coords(coords), ident(std::move(ident)) {}
     Station(const dballe::Record& rec) { set_from_record(rec); }
+
     void clear_ids() { ana_id = MISSING_INT; }
     void set_from_record(const Record& rec);
     bool operator==(const Station& o) const

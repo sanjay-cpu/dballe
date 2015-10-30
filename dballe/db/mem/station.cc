@@ -3,8 +3,6 @@
 #include "dballe/core/query.h"
 #include "dballe/core/stlutils.h"
 #include "dballe/core/values.h"
-#include "dballe/msg/msg.h"
-#include "dballe/msg/context.h"
 #include "dballe/db/trace.h"
 #include <algorithm>
 #include <iostream>
@@ -17,6 +15,7 @@ namespace dballe {
 namespace db {
 namespace mem {
 
+#if 0
 msg::Context& Station::fill_msg(Msg& msg) const
 {
     msg::Context& c_st = msg.obtain_station_context();
@@ -33,57 +32,38 @@ msg::Context& Station::fill_msg(Msg& msg) const
 
     return c_st;
 }
+#endif
 
 Stations::Stations() {}
 
-size_t Stations::obtain_fixed(const Coords& coords, const std::string& report, bool create)
-{
-    // Search
-    for (const auto& s: *this)
-    {
-        if (s.coords == coords && s.report == report && s.ident.is_missing())
-            return s.id;
-    }
-
-    if (!create)
-        error_notfound::throwf("%s station not found at %f,%f", report.c_str(), coords.dlat(), coords.dlon());
-
-    // Station not found, create it
-    size_t pos = size();
-    emplace_back(pos, coords, report);
-
-    // And return it
-    return pos;
-}
-
-size_t Stations::obtain_mobile(const Coords& coords, const std::string& ident, const std::string& report, bool create)
+int Stations::obtain(const std::string& report, const Coords& coords, const Ident& ident, bool create)
 {
     // Search
     for (const auto& s: *this)
     {
         if (s.coords == coords && s.report == report && s.ident == ident)
-            return s.id;
+            return s.ana_id;
     }
 
     if (!create)
-        error_notfound::throwf("%s station %s not found at %f,%f", report.c_str(), ident.c_str(), coords.dlat(), coords.dlon());
+        error_notfound::throwf("%s station %s not found at %f,%f", report.c_str(), (const char*)ident, coords.dlat(), coords.dlon());
 
     // Station not found, create it
-    size_t pos = size();
-    emplace_back(pos, coords, ident.c_str(), report);
+    int pos = size();
+    emplace_back(pos, report, coords, ident);
 
     // And return it
     return pos;
 }
 
-size_t Stations::obtain(const Record& rec, bool create)
+int Stations::obtain(const Record& rec, bool create)
 {
     // Shortcut by ana_id
     if (const Var* var = rec.get("ana_id"))
     {
-        size_t res = var->enqi();
-        if (res > size())
-            error_notfound::throwf("ana_id %zd is invalid", res);
+        int res = var->enqi();
+        if (res < 0 || (unsigned)res > size())
+            error_notfound::throwf("ana_id %d is invalid", res);
         return res;
     }
 
@@ -109,12 +89,12 @@ size_t Stations::obtain(const Record& rec, bool create)
 
     const Var* var_ident = rec.get("ident");
     if (var_ident and var_ident->isset())
-        return obtain_mobile(Coords(s_lat, s_lon), var_ident->enqc(), s_report, create);
+        return obtain(s_report, Coords(s_lat, s_lon), Ident(var_ident->enqc()), create);
     else
-        return obtain_fixed(Coords(s_lat, s_lon), s_report, create);
+        return obtain(s_report, Coords(s_lat, s_lon), Ident(), create);
 }
 
-size_t Stations::obtain(const dballe::Station& st, bool create)
+int Stations::obtain(const dballe::Station& st, bool create)
 {
     // Shortcut by ana_id
     if (st.ana_id != MISSING_INT)
@@ -124,24 +104,21 @@ size_t Stations::obtain(const dballe::Station& st, bool create)
         return st.ana_id;
     }
 
-    if (st.ident.is_missing())
-        return obtain_fixed(st.coords, st.report, create);
-    else
-        return obtain_mobile(st.coords, st.ident, st.report, create);
+    return obtain(st.report, st.coords, st.ident, create);
 }
 
-std::unordered_set<size_t> Stations::query(const core::Query& q) const
+std::unordered_set<int> Stations::query(const core::Query& q) const
 {
     std::function<void(std::function<void(const Station&)>)> generate;
 
     if (q.ana_id != MISSING_INT)
     {
         //trace_query("Found ana_id %d\n", q.ana_id);
-        size_t pos = q.ana_id;
-        if (pos >= size())
+        int pos = q.ana_id;
+        if (pos < 0 || (unsigned)pos >= size())
         {
             //trace_query(" set to empty result set\n");
-            return std::unordered_set<size_t>();
+            return std::unordered_set<int>();
         }
 
         //trace_query(" intersect with %zu\n", pos);
@@ -155,7 +132,7 @@ std::unordered_set<size_t> Stations::query(const core::Query& q) const
         };
     }
 
-    std::unordered_set<size_t> res;
+    std::unordered_set<int> res;
     generate([&](const Station& s) {
         if (!q.rep_memo.empty() && s.report != q.rep_memo) return;
         if (!q.latrange.contains(s.coords.lat)) return;
@@ -163,7 +140,7 @@ std::unordered_set<size_t> Stations::query(const core::Query& q) const
         if (q.mobile != MISSING_INT && (bool)q.mobile == s.ident.is_missing())
             return;
         if (!q.ident.is_missing() && s.ident != q.ident) return;
-        res.insert(s.id);
+        res.insert(s.ana_id);
     });
     return res;
 }
@@ -173,9 +150,8 @@ void Stations::dump(FILE* out) const
     fprintf(out, "Stations:\n");
     for (const auto& s: *this)
     {
-        fprintf(out, " %4zu %d %d %s %s\n",
-                s.id, s.coords.lat, s.coords.lon,
-                s.report.c_str(), (const char*)s.ident);
+        fputc(' ', out);
+        s.print(out);
     }
 };
 
