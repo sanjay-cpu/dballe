@@ -3,7 +3,8 @@
 
 #include <dballe/db/db.h>
 #include <dballe/db/mem/repinfo.h>
-#include <dballe/memdb/memdb.h>
+#include <dballe/db/mem/station.h>
+#include <dballe/db/mem/value.h>
 #include <wreport/varinfo.h>
 #include <string>
 #include <vector>
@@ -14,17 +15,21 @@ namespace db {
 
 namespace mem {
 
-/// DB-ALLe database, in-memory db implementation
+/**
+ * DB-ALLe database, in-memory db implementation
+ */
 class DB : public dballe::DB
 {
 public:
-    /// In-memory database backend
-    Memdb memdb;
     Repinfo repinfo;
+    Stations stations;
+    StationValues station_values;
+    DataValues data_values;
 
 protected:
     std::string serialization_dir;
 
+#if 0
     /// Query stations, returning a list of station IDs
     void raw_query_stations(const core::Query& rec, memdb::Results<memdb::Station>& res);
 
@@ -33,7 +38,8 @@ protected:
 
     /// Query data, returning a list of Value IDs
     void raw_query_data(const core::Query& rec, memdb::Results<memdb::Value>& res);
-    
+#endif
+
 public:
     DB();
     DB(const std::string& arg);
@@ -77,8 +83,8 @@ public:
 
     std::map<std::string, int> get_repinfo_priorities() override;
 
-    void insert_station_data(StationValues& vals, bool can_replace, bool station_can_add) override;
-    void insert_data(DataValues& vals, bool can_replace, bool station_can_add) override;
+    void insert_station_data(dballe::StationValues& vals, bool can_replace, bool station_can_add) override;
+    void insert_data(dballe::DataValues& vals, bool can_replace, bool station_can_add) override;
 
     void remove_station_data(const Query& query) override;
     void remove(const Query& rec) override;
@@ -102,8 +108,8 @@ public:
 
     void attr_query_station(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest) override;
     void attr_query_data(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest) override;
-    void attr_insert_station(int data_id, const Values& attrs) override;
-    void attr_insert_data(int data_id, const Values& attrs) override;
+    void attr_insert_station(int data_id, const dballe::Values& attrs) override;
+    void attr_insert_data(int data_id, const dballe::Values& attrs) override;
     void attr_remove_station(int data_id, const db::AttrList& qcs) override;
     void attr_remove_data(int data_id, const db::AttrList& qcs) override;
     bool is_station_variable(int data_id, wreport::Varcode varcode) override;

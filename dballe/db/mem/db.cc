@@ -7,15 +7,12 @@
 #include "dballe/core/query.h"
 #include "dballe/core/values.h"
 #include "dballe/core/defs.h"
-#include "dballe/memdb/results.h"
-#include "dballe/memdb/serializer.h"
 #include <algorithm>
 #include <queue>
 
 // #define TRACE_SOURCE
 #include "dballe/core/trace.h"
 
-using namespace dballe::memdb;
 using namespace std;
 using namespace wreport;
 
@@ -30,8 +27,11 @@ DB::DB(const std::string& arg)
 {
     if (!serialization_dir.empty())
     {
+        throw error_unimplemented("deserializing memdb is not implemented");
+#if 0
         serialize::CSVReader reader(serialization_dir, memdb);
         reader.read();
+#endif
     }
 }
 
@@ -39,15 +39,20 @@ DB::~DB()
 {
     if (!serialization_dir.empty())
     {
+        throw error_unimplemented("serializing memdb is not implemented");
+#if 0
         serialize::CSVWriter writer(serialization_dir);
         writer.write(memdb);
         writer.commit();
+#endif
     }
 }
 
 void DB::disappear()
 {
-    memdb.clear();
+    stations.clear();
+    station_values.clear();
+    data_values.clear();
 }
 
 void DB::reset(const char* repinfo_file)
@@ -66,48 +71,51 @@ std::map<std::string, int> DB::get_repinfo_priorities()
     return repinfo.get_priorities();
 }
 
-void DB::insert_station_data(StationValues& vals, bool can_replace, bool station_can_add)
+void DB::insert_station_data(dballe::StationValues& vals, bool can_replace, bool station_can_add)
 {
     // Obtain the station
-    vals.info.ana_id = memdb.stations.obtain(vals.info, station_can_add);
-    const memdb::Station& station = *memdb.stations[vals.info.ana_id];
+    int ana_id = stations.obtain(vals.info, station_can_add);
 
     // Insert all the variables we find
     for (auto& i: vals.values)
-        i.second.data_id = memdb.stationvalues.insert(station, *i.second.var, can_replace);
+        i.second.data_id = station_values.insert(*i.second.var, can_replace, ana_id);
 }
 
-void DB::insert_data(DataValues& vals, bool can_replace, bool station_can_add)
+void DB::insert_data(dballe::DataValues& vals, bool can_replace, bool station_can_add)
 {
     // Obtain the station
-    vals.info.ana_id = memdb.stations.obtain(vals.info, station_can_add);
-    const memdb::Station& station = *memdb.stations[vals.info.ana_id];
-
-    // Obtain the levtr
-    const LevTr& levtr = *memdb.levtrs[memdb.levtrs.obtain(vals.info.level, vals.info.trange)];
+    int ana_id = stations.obtain(vals.info, station_can_add);
 
     // Insert all the variables we find
     for (auto& i: vals.values)
-        i.second.data_id = memdb.values.insert(station, levtr, vals.info.datetime, *i.second.var, can_replace);
+        i.second.data_id = data_values.insert(*i.second.var, can_replace, ana_id, vals.info.datetime, vals.info.level, vals.info.trange);
 }
 
 void DB::remove_station_data(const Query& query)
 {
+    throw error_unimplemented("removing station data is not implemented");
+#if 0
     Results<StationValue> res(memdb.stationvalues);
     raw_query_station_data(core::Query::downcast(query), res);
     memdb.remove(res);
+#endif
 }
 
 void DB::remove(const Query& query)
 {
+    throw error_unimplemented("removing data is not implemented");
+#if 0
     Results<Value> res(memdb.values);
     raw_query_data(core::Query::downcast(query), res);
     memdb.remove(res);
+#endif
 }
 
 void DB::remove_all()
 {
-    memdb.clear();
+    stations.clear();
+    station_values.clear();
+    data_values.clear();
 }
 
 void DB::vacuum()
@@ -115,6 +123,7 @@ void DB::vacuum()
     // Nothing to do
 }
 
+#if 0
 namespace {
 struct MatchAnaFilter : public Match<memdb::Station>
 {
@@ -148,9 +157,13 @@ struct MatchRepinfo : public Match<memdb::Station>
 };
 
 }
+#endif
 
+#if 0
 void DB::raw_query_stations(const core::Query& q, memdb::Results<memdb::Station>& res)
 {
+    throw error_unimplemented("querying stations is not implemented");
+#if 0
     // Build a matcher for queries by priority
     const int& priomin = q.prio_min;
     const int& priomax = q.prio_max;
@@ -211,21 +224,27 @@ void DB::raw_query_stations(const core::Query& q, memdb::Results<memdb::Station>
     }
 
     memdb.stations.query(q, res);
+#endif
 }
 
 
 void DB::raw_query_station_data(const core::Query& q, memdb::Results<memdb::StationValue>& res)
 {
+    throw error_unimplemented("querying station data is not implemented");
+#if 0
     // Get a list of stations we can match
     Results<memdb::Station> res_st(memdb.stations);
 
     raw_query_stations(q, res_st);
 
     memdb.stationvalues.query(q, res_st, res);
+#endif
 }
 
 void DB::raw_query_data(const core::Query& q, memdb::Results<memdb::Value>& res)
 {
+    throw error_unimplemented("querying data is not implemented");
+#if 0
     // Get a list of stations we can match
     Results<memdb::Station> res_st(memdb.stations);
     raw_query_stations(q, res_st);
@@ -236,10 +255,14 @@ void DB::raw_query_data(const core::Query& q, memdb::Results<memdb::Value>& res)
 
     // Query variables
     memdb.values.query(q, res_st, res_tr, res);
+#endif
 }
+#endif
 
 std::unique_ptr<db::CursorStation> DB::query_stations(const Query& query)
 {
+    throw error_unimplemented("querying stations is not implemented");
+#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
     Results<memdb::Station> res(memdb.stations);
@@ -270,10 +293,13 @@ std::unique_ptr<db::CursorStation> DB::query_stations(const Query& query)
 
     raw_query_stations(q, res);
     return cursor::createStations(*this, modifiers, res);
+#endif
 }
 
 std::unique_ptr<db::CursorStationData> DB::query_station_data(const Query& query)
 {
+    throw error_unimplemented("querying station data is not implemented");
+#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
     if (modifiers & DBA_DB_MODIFIER_BEST)
@@ -285,10 +311,13 @@ std::unique_ptr<db::CursorStationData> DB::query_station_data(const Query& query
         raw_query_station_data(q, res);
         return cursor::createStationData(*this, modifiers, res);
     }
+#endif
 }
 
 std::unique_ptr<db::CursorData> DB::query_data(const Query& query)
 {
+    throw error_unimplemented("querying data is not implemented");
+#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
     Results<Value> res(memdb.values);
@@ -299,55 +328,80 @@ std::unique_ptr<db::CursorData> DB::query_data(const Query& query)
     } else {
         return cursor::createData(*this, modifiers, res);
     }
+#endif
 }
 
 std::unique_ptr<db::CursorSummary> DB::query_summary(const Query& query)
 {
+    throw error_unimplemented("querying summaries is not implemented");
+#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
     Results<Value> res(memdb.values);
     raw_query_data(q, res);
     return cursor::createSummary(*this, modifiers, res);
+#endif
 }
 
 void DB::attr_query_station(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest)
 {
+    throw error_unimplemented("querying station attributes is not implemented");
+#if 0
     ValueBase* v = memdb.stationvalues.get_checked(data_id);
     if (!v) error_notfound::throwf("no station variable found with data id %d", data_id);
     v->query_attrs(dest);
+#endif
 }
 void DB::attr_query_data(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest)
 {
+    throw error_unimplemented("querying data attributes is not implemented");
+#if 0
     ValueBase* v = memdb.values.get_checked(data_id);
     if (!v) error_notfound::throwf("no data variable found with data id %d", data_id);
     v->query_attrs(dest);
+#endif
 }
-void DB::attr_insert_station(int data_id, const Values& attrs)
+void DB::attr_insert_station(int data_id, const dballe::Values& attrs)
 {
+    throw error_unimplemented("inserting station attributes is not implemented");
+#if 0
     ValueBase* v = memdb.stationvalues.get_checked(data_id);
     if (!v) error_notfound::throwf("no station variable found with data id %d", data_id);
     v->attr_insert(attrs);
+#endif
 }
-void DB::attr_insert_data(int data_id, const Values& attrs)
+void DB::attr_insert_data(int data_id, const dballe::Values& attrs)
 {
+    throw error_unimplemented("inserting data attributes is not implemented");
+#if 0
     ValueBase* v = memdb.values.get_checked(data_id);
     if (!v) error_notfound::throwf("no data variable found with data id %d", data_id);
     v->attr_insert(attrs);
+#endif
 }
 void DB::attr_remove_station(int data_id, const db::AttrList& qcs)
 {
+    throw error_unimplemented("removing station attributes is not implemented");
+#if 0
     ValueBase* v = memdb.stationvalues.get_checked(data_id);
     if (!v) error_notfound::throwf("no station variable found with data id %d", data_id);
     v->attr_remove(qcs);
+#endif
 }
 void DB::attr_remove_data(int data_id, const db::AttrList& qcs)
 {
+    throw error_unimplemented("removing data attributes is not implemented");
+#if 0
     ValueBase* v = memdb.values.get_checked(data_id);
     if (!v) error_notfound::throwf("no data variable found with data id %d", data_id);
     v->attr_remove(qcs);
+#endif
 }
+
 bool DB::is_station_variable(int data_id, wreport::Varcode varcode)
 {
+    throw error_unimplemented("is_station_variable is not implemented");
+#if 0
     // FIXME: this is hackish, and has unexpected results if we have data
     // values and station values with the same id_var and id_data. Giving that
     // measured values are usually different than the station values, the case
@@ -358,24 +412,31 @@ bool DB::is_station_variable(int data_id, wreport::Varcode varcode)
     v = memdb.stationvalues.get_checked(data_id);
     if (v && v->var->code() == varcode) return true;
     error_notfound::throwf("variable B%02d%03d not found at data id %d", WR_VAR_X(varcode), WR_VAR_Y(varcode), data_id);
+#endif
 }
 
 void DB::dump(FILE* out)
 {
     fprintf(out, "repinfo data:\n");
     repinfo.dump(out);
-    memdb.dump(out);
+    stations.dump(out);
+    station_values.dump(out);
+    data_values.dump(out);
 }
 
 void DB::import_msg(const Message& msg, const char* repmemo, int flags)
 {
+    throw error_unimplemented("import_msg is not implemented");
+#if 0
     memdb.insert(Msg::downcast(msg),
             flags | DBA_IMPORT_OVERWRITE,
             flags | DBA_IMPORT_FULL_PSEUDOANA,
             flags | DBA_IMPORT_ATTRS,
             repmemo);
+#endif
 }
 
+#if 0
 namespace {
 
 struct CompareForExport
@@ -393,9 +454,12 @@ struct CompareForExport
 };
 
 }
+#endif
 
 bool DB::export_msgs(const Query& query_gen, std::function<bool(std::unique_ptr<Message>&&)> dest)
 {
+    throw error_unimplemented("export_msgs is not implemented");
+#if 0
     const core::Query& query = core::Query::downcast(query_gen);
     Results<Value> res(memdb.values);
     raw_query_data(query, res);
@@ -480,12 +544,9 @@ bool DB::export_msgs(const Query& query_gen, std::function<bool(std::unique_ptr<
                 return false;
     }
     return true;
+#endif
 }
 
 }
 }
 }
-
-#include "dballe/memdb/results.tcc"
-
-/* vim:set ts=4 sw=4: */
