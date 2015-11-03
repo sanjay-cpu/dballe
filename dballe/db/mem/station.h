@@ -36,7 +36,7 @@ public:
     int obtain(const dballe::Station& st, bool create=true);
 
     /// Query stations returning the IDs
-    std::unordered_set<int> query(const core::Query& q) const;
+    void query(const core::Query& q, std::function<void(int)> dest) const;
 
     void dump(FILE* out) const;
 };

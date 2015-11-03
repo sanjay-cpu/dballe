@@ -82,10 +82,6 @@ public:
 
     /**
      * Maps value context information to data_id
-     *
-     * Order used by station queryes: ana_id
-     * Order used by data queries: ana_id, datetime, level, trange, report, var
-     * Order used by export queries: ana_id, report, datetime, level, trange, var
      */
     std::map<Key, int> values;
 
@@ -93,6 +89,20 @@ public:
     {
         variables.clear();
         values.clear();
+    }
+
+    /**
+     * Look up a data_id by its metadata.
+     *
+     * Returns -1 if the value was not found.
+     */
+    template<typename... Args>
+    int get(wreport::Varcode code, Args&&... args)
+    {
+        Key key(std::forward<Args>(args)..., code);
+        typename std::map<Key, int>::const_iterator i = values.find(key);
+        if (i == values.end()) return -1;
+        return i->second;
     }
 
     /// Insert a new value, or replace an existing one. Return the data_id.
@@ -187,6 +197,7 @@ public:
 
 struct StationValues : public ValuesBase<StationValue>
 {
+    void fill_record(int ana_id, Record& rec);
 };
 
 struct DataValues : public ValuesBase<DataValue>

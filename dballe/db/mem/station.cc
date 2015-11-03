@@ -107,7 +107,7 @@ int Stations::obtain(const dballe::Station& st, bool create)
     return obtain(st.report, st.coords, st.ident, create);
 }
 
-std::unordered_set<int> Stations::query(const core::Query& q) const
+void Stations::query(const core::Query& q, std::function<void(int)> dest) const
 {
     std::function<void(std::function<void(const Station&)>)> generate;
 
@@ -118,7 +118,7 @@ std::unordered_set<int> Stations::query(const core::Query& q) const
         if (pos < 0 || (unsigned)pos >= size())
         {
             //trace_query(" set to empty result set\n");
-            return std::unordered_set<int>();
+            return;
         }
 
         //trace_query(" intersect with %zu\n", pos);
@@ -132,7 +132,6 @@ std::unordered_set<int> Stations::query(const core::Query& q) const
         };
     }
 
-    std::unordered_set<int> res;
     generate([&](const Station& s) {
         if (!q.rep_memo.empty() && s.report != q.rep_memo) return;
         if (!q.latrange.contains(s.coords.lat)) return;
@@ -140,9 +139,8 @@ std::unordered_set<int> Stations::query(const core::Query& q) const
         if (q.mobile != MISSING_INT && (bool)q.mobile == s.ident.is_missing())
             return;
         if (!q.ident.is_missing() && s.ident != q.ident) return;
-        res.insert(s.ana_id);
+        dest(s.ana_id);
     });
-    return res;
 }
 
 void Stations::dump(FILE* out) const

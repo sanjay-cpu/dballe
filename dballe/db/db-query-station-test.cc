@@ -171,7 +171,7 @@ class Tests : public FixtureTestCase<Fixture>
             {
                 case MEM:
                     if (auto d = dynamic_cast<mem::DB*>(f.db))
-                        d->memdb.stations.obtain_fixed(Coords(11.0, 45.0), "synop");
+                        d->stations.obtain("synop", Coords(11.0, 45.0), Ident());
                     break;
                 case V6:
                     if (auto d = dynamic_cast<v6::DB*>(f.db))

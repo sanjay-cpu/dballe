@@ -73,8 +73,10 @@ std::map<std::string, int> DB::get_repinfo_priorities()
 
 void DB::insert_station_data(dballe::StationValues& vals, bool can_replace, bool station_can_add)
 {
+    vals.info.ana_id = MISSING_INT;
+
     // Obtain the station
-    int ana_id = stations.obtain(vals.info, station_can_add);
+    int ana_id = vals.info.ana_id = stations.obtain(vals.info, station_can_add);
 
     // Insert all the variables we find
     for (auto& i: vals.values)
@@ -83,8 +85,10 @@ void DB::insert_station_data(dballe::StationValues& vals, bool can_replace, bool
 
 void DB::insert_data(dballe::DataValues& vals, bool can_replace, bool station_can_add)
 {
+    vals.info.ana_id = MISSING_INT;
+
     // Obtain the station
-    int ana_id = stations.obtain(vals.info, station_can_add);
+    int ana_id = vals.info.ana_id = stations.obtain(vals.info, station_can_add);
 
     // Insert all the variables we find
     for (auto& i: vals.values)
@@ -123,47 +127,8 @@ void DB::vacuum()
     // Nothing to do
 }
 
-#if 0
-namespace {
-struct MatchAnaFilter : public Match<memdb::Station>
+void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
 {
-    const memdb::StationValues& stationvalues;
-    Varmatch* match;
-
-    MatchAnaFilter(const memdb::StationValues& stationvalues, const std::string& expr)
-        : stationvalues(stationvalues), match(Varmatch::parse(expr).release()) {}
-    ~MatchAnaFilter() { delete match; }
-
-    bool operator()(const memdb::Station& val) const override
-    {
-        const memdb::StationValue* sv = stationvalues.get(val, match->code);
-        if (!sv) return false;
-        return (*match)(*(sv->var));
-    }
-
-private:
-    MatchAnaFilter(const MatchAnaFilter&);
-    MatchAnaFilter& operator=(const MatchAnaFilter&);
-};
-
-struct MatchRepinfo : public Match<memdb::Station>
-{
-    std::set<std::string> report_whitelist;
-
-    bool operator()(const memdb::Station& val) const override
-    {
-        return report_whitelist.find(val.report) != report_whitelist.end();
-    }
-};
-
-}
-#endif
-
-#if 0
-void DB::raw_query_stations(const core::Query& q, memdb::Results<memdb::Station>& res)
-{
-    throw error_unimplemented("querying stations is not implemented");
-#if 0
     // Build a matcher for queries by priority
     const int& priomin = q.prio_min;
     const int& priomax = q.prio_max;
@@ -171,63 +136,90 @@ void DB::raw_query_stations(const core::Query& q, memdb::Results<memdb::Station>
     {
         // If priomax == priomin, use exact prio instead of
         // min-max bounds
+        unordered_set<std::string> report_whitelist;
+
         if (priomax == priomin)
         {
             std::map<std::string, int> prios = get_repinfo_priorities();
-            unique_ptr<MatchRepinfo> m(new MatchRepinfo);
             for (std::map<std::string, int>::const_iterator i = prios.begin();
                     i != prios.end(); ++i)
                 if (i->second == priomin)
-                    m->report_whitelist.insert(i->first);
-            res.add(m.release());
+                    report_whitelist.insert(i->first);
         } else {
             // Here, prio is unset and priomin != priomax
 
             // Deal with priomin > priomax
             if (priomin != MISSING_INT && priomax != MISSING_INT && priomax < priomin)
-            {
-                res.set_to_empty();
                 return;
-            }
 
             std::map<std::string, int> prios = get_repinfo_priorities();
-            unique_ptr<MatchRepinfo> m(new MatchRepinfo);
             for (std::map<std::string, int>::const_iterator i = prios.begin();
                     i != prios.end(); ++i)
             {
                 if (priomin != MISSING_INT && i->second < priomin) continue;
                 if (priomax != MISSING_INT && i->second > priomax) continue;
-                m->report_whitelist.insert(i->first);
+                report_whitelist.insert(i->first);
             }
-            res.add(m.release());
         }
+
+        // If no report matches the given priority range, there are no results
+        // and we are done
+        if (report_whitelist.empty())
+            return;
+
+        // Chain a filter on report_whitelist
+        dest = [this, report_whitelist, &dest](int ana_id) {
+            if (report_whitelist.find(stations[ana_id].report) == report_whitelist.end())
+                return;
+            dest(ana_id);
+        };
     }
 
+    unique_ptr<Varmatch> match;
     if (!q.ana_filter.empty())
     {
-        res.add(new MatchAnaFilter(memdb.stationvalues, q.ana_filter));
-        trace_query("Found ana filter %s\n", val);
+        match = Varmatch::parse(q.ana_filter);
+        Varmatch& vm(*match);
+        unique_ptr<Varmatch> match(Varmatch::parse(q.ana_filter));
+        dest = [this, &vm, &dest](int ana_id) {
+            int data_id = station_values.get(ana_id, vm.code);
+            if (data_id == -1) return;
+            if (!vm(station_values.variables[ana_id])) return;
+            dest(ana_id);
+        };
+        TRACE("Found ana filter %s\n", q.ana_filter.c_str());
     }
     if (q.block != MISSING_INT)
     {
-        char query[100];
-        snprintf(query, 100, "B01001=%d", q.block);
-        res.add(new MatchAnaFilter(memdb.stationvalues, query));
-        trace_query("Found block filter %s\n", query);
+        int block = q.block;
+        dest = [this, block, &dest](int ana_id) {
+            int data_id = station_values.get(ana_id, WR_VAR(0, 1, 1));
+            if (data_id == -1) return;
+            const Var& var = station_values.variables[ana_id];
+            if (!var.isset()) return;
+            if (var.enqi() != block) return;
+            dest(ana_id);
+        };
+        TRACE("Found block filter B01001=%d\n", block);
     }
     if (q.station != MISSING_INT)
     {
-        char query[100];
-        snprintf(query, 100, "B01002=%d", q.station);
-        res.add(new MatchAnaFilter(memdb.stationvalues, query));
-        trace_query("Found station filter %s\n", query);
+        int station = q.station;
+        dest = [this, station, &dest](int ana_id) {
+            int data_id = station_values.get(ana_id, WR_VAR(0, 1, 2));
+            if (data_id == -1) return;
+            const Var& var = station_values.variables[ana_id];
+            if (!var.isset()) return;
+            if (var.enqi() != station) return;
+            dest(ana_id);
+        };
+        TRACE("Found station filter B01002=%d\n", station);
     }
 
-    memdb.stations.query(q, res);
-#endif
+    stations.query(q, dest);
 }
 
-
+#if 0
 void DB::raw_query_station_data(const core::Query& q, memdb::Results<memdb::StationValue>& res)
 {
     throw error_unimplemented("querying station data is not implemented");
@@ -261,11 +253,11 @@ void DB::raw_query_data(const core::Query& q, memdb::Results<memdb::Value>& res)
 
 std::unique_ptr<db::CursorStation> DB::query_stations(const Query& query)
 {
-    throw error_unimplemented("querying stations is not implemented");
-#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
-    Results<memdb::Station> res(memdb.stations);
+
+    std::function<void(int)> dest;
+    set<int> result;
 
     // Build var/varlist special-cased filter for station queries
     if (!q.varcodes.empty())
@@ -274,26 +266,34 @@ std::unique_ptr<db::CursorStation> DB::query_stations(const Query& query)
 
         // Iterate all the possible values, taking note of the stations for
         // variables whose varcodes are in 'varcodes'
-        unique_ptr<set<size_t>> id_whitelist(new set<size_t>);
-        for (ValueStorage<Value>::index_iterator i = memdb.values.index_begin();
-                i != memdb.values.index_end(); ++i)
+        unordered_set<int> id_whitelist;
+        for (size_t idx = 0; idx < data_values.variables.size(); ++idx)
         {
-            const Value& v = *memdb.values[*i];
-            if (varcodes.find(v.var->code()) != varcodes.end())
-                id_whitelist->insert(*i);
+            const Var& var = data_values.variables[idx];
+            if (!var.isset()) continue;
+            if (varcodes.find(var.code()) != varcodes.end())
+                id_whitelist.insert(idx);
         }
-        IF_TRACE_QUERY {
-            trace_query("Found var/varlist station filter: %zd items in id whitelist:", id_whitelist->size());
-            for (set<size_t>::const_iterator i = id_whitelist->begin(); i != id_whitelist->end(); ++i)
-                trace_query(" %zd", *i);
-            trace_query("\n");
+
+        IFTRACE {
+            TRACE("Found var/varlist station filter: %zd items in id whitelist:", id_whitelist.size());
+            for (const auto& i: id_whitelist)
+                TRACE(" %d", i);
+            TRACE("\n");
         }
-        res.add_set(move(id_whitelist));
+
+        dest = [id_whitelist, &result](int ana_id) {
+            if (id_whitelist.find(ana_id) == id_whitelist.end()) return;
+            result.insert(ana_id);
+        };
+    } else {
+        dest = [&result](int ana_id) {
+            result.insert(ana_id);
+        };
     }
 
-    raw_query_stations(q, res);
-    return cursor::createStations(*this, modifiers, res);
-#endif
+    raw_query_stations(q, dest);
+    return cursor::createStations(*this, modifiers, move(result));
 }
 
 std::unique_ptr<db::CursorStationData> DB::query_station_data(const Query& query)

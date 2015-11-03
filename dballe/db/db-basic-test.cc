@@ -111,16 +111,18 @@ class Tests : public FixtureTestCase<DBFixture>
                 // For mem databases, we get one record per (station, network)
                 // combination
                 wassert(actual(cur->next()).istrue());
+                wassert(actual(cur->get_station_id()) == svals_camse.info.ana_id);
+                wassert(actual(cur->get_rep_memo()) == "synop");
+                cur->to_record(result);
+                wassert(actual(result["B01019"]) == "Camse");
+
+                wassert(actual(cur->next()).istrue());
                 wassert(actual(cur->get_station_id()) == svals_esmac.info.ana_id);
                 wassert(actual(cur->get_rep_memo()) == "temp");
                 cur->to_record(result);
                 wassert(actual(result["B01019"]) == "Esmac");
 
-                wassert(actual(cur->next()).istrue());
-                wassert(actual(cur->get_station_id()) == svals_camse.info.ana_id);
-                wassert(actual(cur->get_rep_memo()) == "synop");
-                cur->to_record(result);
-                wassert(actual(result["B01019"]) == "Camse");
+                wassert(actual(cur->next()).isfalse());
             } else {
                 // For normal databases, we only get one record, with the station
                 // values merged keeping values for the best networks

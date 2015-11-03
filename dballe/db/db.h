@@ -53,7 +53,11 @@ struct Cursor
     virtual int remaining() const = 0;
 
     /**
-     * Get a new item from the results of a query
+     * Get a new item from the results of a query.
+     *
+     * When a cursor has been newly created, it is in an undefined state until
+     * next() is called. next() needs to be called also to access the very
+     * first element in the result set.
      *
      * @returns
      *   true if a new record has been read, false if there is no more data to read

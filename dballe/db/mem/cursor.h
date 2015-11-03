@@ -1,18 +1,13 @@
 #ifndef DBA_DB_MEM_CURSOR_H
 #define DBA_DB_MEM_CURSOR_H
 
-#include <dballe/memdb/memdb.h>
-#include <dballe/memdb/results.h>
 #include <dballe/db/db.h>
+#include <set>
 #include <iosfwd>
 
 namespace dballe {
 struct DB;
 struct Record;
-
-namespace memdb {
-template<typename T> class ValueStorage;
-}
 
 namespace db {
 
@@ -28,12 +23,15 @@ typedef std::vector<wreport::Varcode> AttrList;
 
 namespace cursor {
 
-std::unique_ptr<db::CursorStation> createStations(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Station>& res);
+std::unique_ptr<db::CursorStation> createStations(mem::DB& db, unsigned modifiers, std::set<int>&& ana_ids);
+/*
 std::unique_ptr<db::CursorStationData> createStationData(mem::DB& db, unsigned modifiers, memdb::Results<memdb::StationValue>& res);
 std::unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
 std::unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
 std::unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
+*/
 
+#if 0
 /**
  * Wrapper around a Value index that compares so that all values from which the
  * best report should be selected appear to be the same.
@@ -50,6 +48,7 @@ struct DataBestKey
     bool operator<(const DataBestKey& o) const;
 };
 std::ostream& operator<<(std::ostream& out, const DataBestKey& k);
+#endif
 
 }
 

@@ -29,10 +29,16 @@ public:
 protected:
     std::string serialization_dir;
 
-#if 0
-    /// Query stations, returning a list of station IDs
-    void raw_query_stations(const core::Query& rec, memdb::Results<memdb::Station>& res);
+    /*
+     * Order used by station queries: ana_id
+     * Order used by data queries: ana_id, datetime, level, trange, report, var
+     * Order used by export queries: ana_id, report, datetime, level, trange, var
+     */
 
+    /// Query stations, returning a list of station IDs
+    void raw_query_stations(const core::Query& rec, std::function<void(int)> dest);
+
+#if 0
     /// Query station data, returning a list of Value IDs
     void raw_query_station_data(const core::Query& rec, memdb::Results<memdb::StationValue>& res);
 

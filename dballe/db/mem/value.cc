@@ -48,6 +48,17 @@ void DataValue::dump(FILE* out) const
     fputs(buf.str().c_str(), out);
 }
 
+void StationValues::fill_record(int ana_id, Record& rec)
+{
+    map<StationValue, int>::const_iterator cur = values.lower_bound(StationValue(ana_id, 0));
+    map<StationValue, int>::const_iterator end = values.upper_bound(StationValue(ana_id, 0xffff));
+    for ( ; cur != end; ++cur)
+    {
+        if (!variables[cur->second].isset()) continue;
+        rec.set(variables[cur->second]);
+    }
+}
+
 /*
 void Values::erase(size_t idx)
 {

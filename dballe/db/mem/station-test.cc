@@ -65,14 +65,16 @@ class Tests : public TestCase
 
             {
                 query.ana_id = pos;
-                unordered_set<int> items = stations.query(query);
+                unordered_set<int> items;
+                stations.query(query, [&](int id) { items.insert(id); });
                 wassert(actual(items.size()) == 1);
                 wassert(actual(*items.begin()) == pos);
             }
 
             {
                 query.ana_id = 100;
-                unordered_set<int> items = stations.query(query);
+                unordered_set<int> items;
+                stations.query(query, [&](int id) { items.insert(id); });
                 wassert(actual(items.empty()).istrue());
             }
 
@@ -80,7 +82,8 @@ class Tests : public TestCase
 
             {
                 query.ana_id = pos;
-                unordered_set<int> items = stations.query(query);
+                unordered_set<int> items;
+                stations.query(query, [&](int id) { items.insert(id); });
                 wassert(actual(items.size()) == 1);
                 wassert(actual(*items.begin()) == pos);
             }
@@ -91,7 +94,8 @@ class Tests : public TestCase
             int pos = stations.obtain("synop", Coords(44.0, 11.0), Ident());
             stations.obtain("synop", Coords(45.0, 12.0), Ident());
 
-            unordered_set<int> items = stations.query(tests::core_query_from_string("lat=44.0, lon=11.0"));
+            unordered_set<int> items;
+            stations.query(tests::core_query_from_string("lat=44.0, lon=11.0"), [&](int id) { items.insert(id); });
             wassert(actual(items.size()) == 1);
             wassert(actual(*items.begin()) == pos);
         });
@@ -101,7 +105,8 @@ class Tests : public TestCase
             int pos1 = stations.obtain("synop", Coords(44.0, 11.0), Ident());
             int pos2 = stations.obtain("synop", Coords(45.0, 12.0), Ident());
 
-            unordered_set<int> items = stations.query(core::Query());
+            unordered_set<int> items;
+            stations.query(core::Query(), [&](int id) { items.insert(id); });
             wassert(actual(items.size()) == 2);
         });
         add_method("query_multi_latitudes", []() {
@@ -111,7 +116,8 @@ class Tests : public TestCase
             int pos2 = stations.obtain("synop", Coords(45.0, 11.0), Ident());
             int pos3 = stations.obtain("synop", Coords(46.0, 11.0), Ident());
 
-            unordered_set<int> items = stations.query(tests::core_query_from_string("latmin=45.0"));
+            unordered_set<int> items;
+            stations.query(tests::core_query_from_string("latmin=45.0"), [&](int id) { items.insert(id); });
             wassert(actual(items.size()) == 2);
             wassert(actual(items.find(pos2) != items.end()));
             wassert(actual(items.find(pos3) != items.end()));
