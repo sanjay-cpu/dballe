@@ -143,6 +143,17 @@ void Stations::query(const core::Query& q, std::function<void(int)> dest) const
     });
 }
 
+bool Stations::query_selects_all(const core::Query& q)
+{
+    if (q.ana_id != MISSING_INT) return false;
+    if (!q.rep_memo.empty()) return false;
+    if (!q.latrange.is_missing()) return false;
+    if (!q.lonrange.is_missing()) return false;
+    if (q.mobile != MISSING_INT) return false;
+    if (!q.ident.is_missing()) return false;
+    return true;
+}
+
 void Stations::dump(FILE* out) const
 {
     fprintf(out, "Stations:\n");

@@ -197,7 +197,22 @@ public:
 
 struct StationValues : public ValuesBase<StationValue>
 {
+    typedef std::map<StationValue, int>::const_iterator Ptr;
+
+
     void fill_record(int ana_id, Record& rec);
+
+    /**
+     * Wrap a consumer for station values with a filter function that filters entries based on q.
+     *
+     * Only q.varcodes, q.data_filter and q.attr_filter will be considered.
+     */
+    std::function<void(StationValues::Ptr)> wrap_filter(const core::Query& q, std::function<void(StationValues::Ptr)> dest) const;
+
+    /**
+     * Query the station values of the given station
+     */
+    void query(int ana_id, std::function<void(StationValues::Ptr)> dest) const;
 };
 
 struct DataValues : public ValuesBase<DataValue>

@@ -35,10 +35,21 @@ public:
     /// Get a fixed or mobile Station record depending on the data in rec
     int obtain(const dballe::Station& st, bool create=true);
 
-    /// Query stations returning the IDs
+    /**
+     * Query stations returning the IDs
+     *
+     * It filters using q.ana_id, q.rep_memo, q.latrange, q.lonrange, q.mobile, q.ident
+     */
     void query(const core::Query& q, std::function<void(int)> dest) const;
 
     void dump(FILE* out) const;
+
+    /**
+     * Check if the query selects all station, that is, has no filters that are
+     * used by query().
+     */
+    static bool query_selects_all(const core::Query& q);
+
 };
 
 }

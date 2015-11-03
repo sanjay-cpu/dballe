@@ -219,20 +219,36 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
     stations.query(q, dest);
 }
 
-#if 0
-void DB::raw_query_station_data(const core::Query& q, memdb::Results<memdb::StationValue>& res)
+namespace {
+
+bool query_selects_all_stations(const core::Query& q)
 {
-    throw error_unimplemented("querying station data is not implemented");
-#if 0
-    // Get a list of stations we can match
-    Results<memdb::Station> res_st(memdb.stations);
-
-    raw_query_stations(q, res_st);
-
-    memdb.stationvalues.query(q, res_st, res);
-#endif
+    if (!Stations::query_selects_all(q)) return false;
+    if (q.prio_min != MISSING_INT || q.prio_max != MISSING_INT) return false;
+    if (!q.ana_filter.empty()) return false;
+    if (q.block != MISSING_INT) return false;
+    if (q.station != MISSING_INT) return false;
+    return true;
 }
 
+}
+
+void DB::raw_query_station_data(const core::Query& q, std::function<void(StationValues::Ptr)> dest)
+{
+    dest = station_values.wrap_filter(q, dest);
+
+    if (query_selects_all_stations(q))
+    {
+        for (StationValues::Ptr i = station_values.values.begin(); i != station_values.values.end(); ++i)
+            dest(i);
+    } else {
+        raw_query_stations(q, [this, &dest](int ana_id) {
+            station_values.query(ana_id, dest);
+        });
+    }
+}
+
+#if 0
 void DB::raw_query_data(const core::Query& q, memdb::Results<memdb::Value>& res)
 {
     throw error_unimplemented("querying data is not implemented");
@@ -298,8 +314,6 @@ std::unique_ptr<db::CursorStation> DB::query_stations(const Query& query)
 
 std::unique_ptr<db::CursorStationData> DB::query_station_data(const Query& query)
 {
-    throw error_unimplemented("querying station data is not implemented");
-#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
     if (modifiers & DBA_DB_MODIFIER_BEST)
@@ -307,11 +321,10 @@ std::unique_ptr<db::CursorStationData> DB::query_station_data(const Query& query
         throw error_unimplemented("best queries of station vars");
 #warning TODO
     } else {
-        Results<StationValue> res(memdb.stationvalues);
-        raw_query_station_data(q, res);
-        return cursor::createStationData(*this, modifiers, res);
+        std::vector<StationValues::Ptr> results;
+        raw_query_station_data(q, [&results](StationValues::Ptr i) { results.push_back(i); });
+        return cursor::createStationData(*this, modifiers, move(results));
     }
-#endif
 }
 
 std::unique_ptr<db::CursorData> DB::query_data(const Query& query)

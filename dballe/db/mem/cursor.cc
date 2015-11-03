@@ -95,6 +95,7 @@ protected:
         rec.set(val.levtr.level);
         rec.set(val.levtr.trange);
     }
+#endif
 
     void to_record_varcode(wreport::Varcode code, Record& rec)
     {
@@ -103,6 +104,7 @@ protected:
         rec.setc("var", bname);
     }
 
+#if 0
     void to_record_value(const memdb::Value& val, Record& rec)
     {
         to_record_levtr(val, rec);
@@ -168,20 +170,23 @@ struct CursorSorted : public Base<Interface>
 };
 #endif
 
-struct MemCursorStations : public Base<CursorStation>
+template<typename Interface, typename Results>
+struct ResultsCursor : public Base<Interface>
 {
-    std::set<int> results;
+    Results results;
     bool first = true;
-    set<int>::const_iterator cur;
+    typename Results::const_iterator cur;
 
-    MemCursorStations(mem::DB& db, unsigned modifiers, std::set<int>&& results)
-        : Base(db, modifiers), results(move(results))
+    ResultsCursor(mem::DB& db, unsigned modifiers, Results&& results)
+        : Base<Interface>(db, modifiers), results(move(results))
     {
-        count = this->results.size();
+        this->count = this->results.size();
     }
 
     bool next() override
     {
+        auto& count = this->count;
+
         if (first)
         {
             cur = results.begin();
@@ -201,8 +206,13 @@ struct MemCursorStations : public Base<CursorStation>
     {
         results.clear();
         cur = results.end();
-        count = 0;
+        this->count = 0;
     }
+};
+
+struct MemCursorStations : public ResultsCursor<CursorStation, std::set<int>>
+{
+    using ResultsCursor::ResultsCursor;
 
     int get_station_id() const override { return *cur; }
     double get_lat() const override { return db.stations[*cur].coords.dlat(); }
@@ -253,35 +263,31 @@ struct StationValueResultQueue : public priority_queue<size_t, vector<size_t>, C
         res.copy_indices_to(stl::pusher(*this));
     }
 };
+#endif
 
-struct MemCursorStationData : public CursorSorted<CursorStationData, StationValueResultQueue>
+struct MemCursorStationData : public ResultsCursor<CursorStationData, std::vector<StationValues::Ptr>>
 {
-    const ValueStorage<memdb::StationValue>& values;
+    using ResultsCursor::ResultsCursor;
 
-    MemCursorStationData(mem::DB& db, unsigned modifiers, Results<memdb::StationValue>& res)
-        : CursorSorted<CursorStationData, StationValueResultQueue>(db, modifiers, res), values(res.values)
-    {
-    }
-
-    int get_station_id() const override { return values[cur]->station.id; }
-    double get_lat() const override { return values[cur]->station.coords.dlat(); }
-    double get_lon() const override { return values[cur]->station.coords.dlon(); }
+    int ana_id() const { return (*this->cur)->first.ana_id; }
+    int get_station_id() const override { return ana_id(); }
+    double get_lat() const override { return db.stations[ana_id()].coords.dlat(); }
+    double get_lon() const override { return db.stations[ana_id()].coords.dlon(); }
     const char* get_ident(const char* def=0) const override
     {
-        if (values[cur]->station.mobile)
-            return values[cur]->station.ident.c_str();
-        else
+        const Ident& ident = db.stations[ana_id()].ident;
+        if (ident.is_missing())
             return def;
+        else
+            return (const char*)ident;
     }
-    const char* get_rep_memo() const override { return values[cur]->station.report.c_str(); }
-    wreport::Varcode get_varcode() const override { return values[this->cur]->var->code(); }
+    const char* get_rep_memo() const override { return db.stations[ana_id()].report.c_str(); }
+    wreport::Varcode get_varcode() const override { return (*this->cur)->first.code; }
     wreport::Var get_var() const override
     {
-        Var res(values[this->cur]->var->info());
-        res.setval(*values[this->cur]->var);
-        return res;
+        return db.station_values.variables[(*this->cur)->second];
     }
-    int attr_reference_id() const override { return this->cur; }
+    int attr_reference_id() const override { return (*this->cur)->second; }
 
 #if 0
     void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
@@ -302,12 +308,13 @@ struct MemCursorStationData : public CursorSorted<CursorStationData, StationValu
 
     void to_record(Record& rec)
     {
-        to_record_station(values[cur]->station, rec);
-        to_record_varcode(values[cur]->var->code(), rec);
-        rec.set(*values[cur]->var);
+        this->to_record_station(db.stations[ana_id()], rec);
+        this->to_record_varcode(get_varcode(), rec);
+        rec.set(db.station_values.variables[(*this->cur)->second]);
     }
 };
 
+#if 0
 struct CompareData
 {
     const ValueStorage<memdb::Value>& values;
@@ -564,17 +571,17 @@ struct MemCursorSummary : public Base<CursorSummary>
 
 }
 
-unique_ptr<db::CursorStation> createStations(mem::DB& db, unsigned modifiers, set<int>&& res)
+unique_ptr<db::CursorStation> createStations(mem::DB& db, unsigned modifiers, set<int>&& results)
 {
-    return unique_ptr<db::CursorStation>(new MemCursorStations(db, modifiers, move(res)));
+    return unique_ptr<db::CursorStation>(new MemCursorStations(db, modifiers, move(results)));
+}
+
+unique_ptr<db::CursorStationData> createStationData(mem::DB& db, unsigned modifiers, std::vector<StationValues::Ptr>&& results)
+{
+    return unique_ptr<db::CursorStationData>(new MemCursorStationData(db, modifiers, move(results)));
 }
 
 #if 0
-unique_ptr<db::CursorStationData> createStationData(mem::DB& db, unsigned modifiers, Results<memdb::StationValue>& res)
-{
-    return unique_ptr<db::CursorStationData>(new MemCursorStationData(db, modifiers, res));
-}
-
 unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
 {
     return unique_ptr<db::CursorData>(new MemCursorData(db, modifiers, res));

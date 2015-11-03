@@ -1,6 +1,7 @@
 #include "value.h"
 #include "dballe/core/query.h"
 #include "dballe/core/varmatch.h"
+#include <memory>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -48,15 +49,70 @@ void DataValue::dump(FILE* out) const
     fputs(buf.str().c_str(), out);
 }
 
-void StationValues::fill_record(int ana_id, Record& rec)
+std::function<void(StationValues::Ptr)> StationValues::wrap_filter(const core::Query& q, std::function<void(StationValues::Ptr)> dest) const
 {
-    map<StationValue, int>::const_iterator cur = values.lower_bound(StationValue(ana_id, 0));
-    map<StationValue, int>::const_iterator end = values.upper_bound(StationValue(ana_id, 0xffff));
+    switch (q.varcodes.size())
+    {
+        case 0: break;
+        case 1:
+        {
+            Varcode code = *q.varcodes.begin();
+            dest = [dest, code](StationValues::Ptr cur) {
+                if (cur->first.code != code) return;
+                dest(cur);
+            };
+            break;
+        }
+        default:
+            dest = [dest, &q](StationValues::Ptr cur) {
+                if (q.varcodes.find(cur->first.code) == q.varcodes.end()) return;
+                dest(cur);
+            };
+            break;
+    }
+
+    if (!q.data_filter.empty())
+    {
+        std::shared_ptr<Varmatch> data_filter(Varmatch::parse(q.data_filter));
+        dest = [this, dest, data_filter](StationValues::Ptr cur) {
+            const Var& var = variables[cur->second];
+            if (!var.isset()) return;
+            if (!(*data_filter)(var)) return;
+            dest(cur);
+        };
+    }
+
+    if (!q.attr_filter.empty())
+    {
+        std::shared_ptr<Varmatch> attr_filter(Varmatch::parse(q.attr_filter));
+        dest = [this, dest, attr_filter](StationValues::Ptr cur) {
+            const Var& var = variables[cur->second];
+            if (!var.isset()) return;
+            const Var* a = var.enqa(attr_filter->code);
+            if (!(*attr_filter)(*a)) return;
+            dest(cur);
+        };
+    }
+
+    return dest;
+}
+
+void StationValues::query(int ana_id, std::function<void(StationValues::Ptr)> dest) const
+{
+    StationValues::Ptr cur = values.lower_bound(StationValue(ana_id, 0));
+    StationValues::Ptr end = values.upper_bound(StationValue(ana_id, 0xffff));
     for ( ; cur != end; ++cur)
     {
-        if (!variables[cur->second].isset()) continue;
-        rec.set(variables[cur->second]);
+        dest(cur);
     }
+}
+
+void StationValues::fill_record(int ana_id, Record& rec)
+{
+    query(ana_id, [this, &rec](StationValues::Ptr cur) {
+        if (!variables[cur->second].isset()) return;
+        rec.set(variables[cur->second]);
+    });
 }
 
 /*
