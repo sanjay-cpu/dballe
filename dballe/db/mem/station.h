@@ -12,9 +12,14 @@
 namespace dballe {
 struct Record;
 struct Station;
+struct Msg;
 
 namespace core {
 struct Query;
+}
+
+namespace msg {
+struct Context;
 }
 
 namespace db {
@@ -41,6 +46,8 @@ public:
      * It filters using q.ana_id, q.rep_memo, q.latrange, q.lonrange, q.mobile, q.ident
      */
     void query(const core::Query& q, std::function<void(int)> dest) const;
+
+    msg::Context& fill_msg(int ana_id, Msg& msg) const;
 
     void dump(FILE* out) const;
 

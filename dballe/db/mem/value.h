@@ -16,6 +16,10 @@ namespace core {
 struct Query;
 }
 
+namespace msg {
+struct Context;
+}
+
 namespace db {
 namespace mem {
 
@@ -199,7 +203,8 @@ public:
 
 struct StationValues : public ValuesBase<StationValue>
 {
-    void fill_record(int ana_id, Record& rec);
+    void fill_record(int ana_id, Record& rec) const;
+    void fill_msg(int ana_id, msg::Context& ctx) const;
 
     /**
      * Wrap a consumer for station values with a filter function that filters entries based on q.

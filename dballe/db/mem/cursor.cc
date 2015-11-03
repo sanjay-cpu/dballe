@@ -476,6 +476,8 @@ struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::
 {
     using ResultsCursor::ResultsCursor;
 
+    // TODO: sort results
+
     int ana_id() const { return (*this->cur)->first.ana_id; }
     int get_station_id() const override { return ana_id(); }
     double get_lat() const override { return db.stations[ana_id()].coords.dlat(); }

@@ -1,6 +1,7 @@
 #include "value.h"
 #include "dballe/core/query.h"
 #include "dballe/core/varmatch.h"
+#include "dballe/msg/context.h"
 #include <memory>
 #include <iomanip>
 #include <ostream>
@@ -107,11 +108,20 @@ void StationValues::query(int ana_id, std::function<void(StationValues::Ptr)> de
     }
 }
 
-void StationValues::fill_record(int ana_id, Record& rec)
+void StationValues::fill_record(int ana_id, Record& rec) const
 {
     query(ana_id, [this, &rec](StationValues::Ptr cur) {
         if (!variables[cur->second].isset()) return;
         rec.set(variables[cur->second]);
+    });
+}
+
+void StationValues::fill_msg(int ana_id, msg::Context& ctx) const
+{
+    query(ana_id, [this, &ctx](StationValues::Ptr cur) {
+        const Var& var = variables[cur->second];
+        if (!var.isset()) return;
+        ctx.set(var);
     });
 }
 

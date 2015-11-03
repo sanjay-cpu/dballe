@@ -455,37 +455,30 @@ void DB::import_msg(const Message& msg, const char* repmemo, int flags)
 #endif
 }
 
-#if 0
 namespace {
 
 struct CompareForExport
 {
-    // Return an inverse comparison, so that the priority queue gives us the
-    // smallest items first
-    bool operator() (const Value* x, const Value* y) const
+    bool operator() (const DataValues::Ptr& x, const DataValues::Ptr& y) const
     {
         // Compare station and report
-        if (x->station.id < y->station.id) return false;
-        if (x->station.id > y->station.id) return true;
+        if (x->first.ana_id < y->first.ana_id) return true;
+        if (x->first.ana_id > y->first.ana_id) return false;
         // Compare datetime
-        return x->datetime > y->datetime;
+        return x->first.datetime < y->first.datetime;
     }
 };
 
 }
-#endif
 
-bool DB::export_msgs(const Query& query_gen, std::function<bool(std::unique_ptr<Message>&&)> dest)
+bool DB::export_msgs(const Query& query, std::function<bool(std::unique_ptr<Message>&&)> dest)
 {
-    throw error_unimplemented("export_msgs is not implemented");
-#if 0
-    const core::Query& query = core::Query::downcast(query_gen);
-    Results<Value> res(memdb.values);
-    raw_query_data(query, res);
+    const core::Query& q = core::Query::downcast(query);
+    std::vector<DataValues::Ptr> results;
+    raw_query_data(q, [&results](DataValues::Ptr i) { results.push_back(i); });
 
-    // Sorted value IDs
-    priority_queue<const Value*, vector<const Value*>, CompareForExport> values;
-    res.copy_valptrs_to(stl::pusher(values));
+    // Sort results so that data for a single message are clustered together
+    std::sort(results.begin(), results.end(), CompareForExport());
 
     TRACE("export_msgs: %zd values in priority queue\n", values.size());
 
@@ -493,24 +486,23 @@ bool DB::export_msgs(const Query& query_gen, std::function<bool(std::unique_ptr<
     unique_ptr<Msg> msg;
 
     // Last value seen, used to detect when we can move on to the next message
-    const Value* old_val = 0;
+    DataValues::Ptr old_val = data_values.values.end();
 
     // Iterate all results, sorted
-    for ( ; !values.empty(); values.pop())
+    for (const auto& val: results)
     {
-        const Value* val = values.top();
         TRACE("Got %zd %04d-%02d-%02d %02d:%02d:%02d B%02d%03d %d,%d, %d,%d %d,%d,%d %s\n",
-                val->station.id,
-                (int)val->datetime.date.year, (int)val->datetime.date.month, (int)val->datetime.date.day,
-                (int)val->datetime.time.hour, (int)val->datetime.time.minute, (int)val->datetime.time.second,
+                val.first.ana_id,
+                (int)val->first.datetime.date.year, (int)val->first.datetime.date.month, (int)val->first.datetime.date.day,
+                (int)val->first.datetime.time.hour, (int)val->first.datetime.time.minute, (int)val->first.datetime.time.second,
                 WR_VAR_X(val->var->code()), WR_VAR_Y(val->var->code()),
                 val->levtr.level.ltype1, val->levtr.level.l1, val->levtr.level.ltype2, val->levtr.level.l2,
                 val->levtr.trange.pind, val->levtr.trange.p1, val->levtr.trange.p2,
                 val->var->value());
 
         // See if we have the start of a new message
-        if (!old_val || old_val->station.id != val->station.id ||
-                old_val->datetime != val->datetime)
+        if (old_val == data_values.values.end() || old_val->first.ana_id != val->first.ana_id ||
+                old_val->first.datetime != val->first.datetime)
         {
             // Flush current message
             TRACE("New message\n");
@@ -532,21 +524,21 @@ bool DB::export_msgs(const Query& query_gen, std::function<bool(std::unique_ptr<
             msg.reset(new Msg);
 
             // Fill datetime
-            msg->set_datetime(val->datetime);
+            msg->set_datetime(val->first.datetime);
 
             // Fill station info
-            msg::Context& c_st = val->station.fill_msg(*msg);
+            msg::Context& c_st = stations.fill_msg(val->first.ana_id, *msg);
 
             // Fill station vars
-            memdb.stationvalues.fill_msg(val->station, c_st);
+            station_values.fill_msg(val->first.ana_id, c_st);
 
             // Update last value seen info
             old_val = val;
         }
 
         TRACE("Inserting var B%02d%03d (%s)\n", WR_VAR_X(val->var->code()), WR_VAR_Y(val->var->code()), val->var->value());
-        msg::Context& ctx = msg->obtain_context(val->levtr.level, val->levtr.trange);
-        ctx.set(*val->var);
+        msg::Context& ctx = msg->obtain_context(val->first.level, val->first.trange);
+        ctx.set(data_values.variables[val->second]);
     }
 
     if (msg.get() != NULL)
@@ -563,7 +555,6 @@ bool DB::export_msgs(const Query& query_gen, std::function<bool(std::unique_ptr<
                 return false;
     }
     return true;
-#endif
 }
 
 }

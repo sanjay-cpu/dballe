@@ -3,6 +3,8 @@
 #include "dballe/core/query.h"
 #include "dballe/core/stlutils.h"
 #include "dballe/core/values.h"
+#include "dballe/msg/msg.h"
+#include "dballe/msg/context.h"
 #include "dballe/db/trace.h"
 #include <algorithm>
 #include <iostream>
@@ -14,25 +16,6 @@ using namespace wreport;
 namespace dballe {
 namespace db {
 namespace mem {
-
-#if 0
-msg::Context& Station::fill_msg(Msg& msg) const
-{
-    msg::Context& c_st = msg.obtain_station_context();
-
-    // Fill in report information
-    msg.type = Msg::type_from_repmemo(report.c_str());
-    c_st.set_rep_memo(report.c_str());
-
-    // Fill in the basic station values
-    c_st.seti(WR_VAR(0, 5, 1), coords.lat);
-    c_st.seti(WR_VAR(0, 6, 1), coords.lon);
-    if (!ident.is_missing())
-        c_st.set_ident(ident);
-
-    return c_st;
-}
-#endif
 
 Stations::Stations() {}
 
@@ -152,6 +135,25 @@ bool Stations::query_selects_all(const core::Query& q)
     if (q.mobile != MISSING_INT) return false;
     if (!q.ident.is_missing()) return false;
     return true;
+}
+
+msg::Context& Stations::fill_msg(int ana_id, Msg& msg) const
+{
+    msg::Context& c_st = msg.obtain_station_context();
+
+    const Station& st = (*this)[ana_id];
+
+    // Fill in report information
+    msg.type = Msg::type_from_repmemo(st.report.c_str());
+    c_st.set_rep_memo(st.report.c_str());
+
+    // Fill in the basic station values
+    c_st.seti(WR_VAR(0, 5, 1), st.coords.lat);
+    c_st.seti(WR_VAR(0, 6, 1), st.coords.lon);
+    if (!st.ident.is_missing())
+        c_st.set_ident(st.ident);
+
+    return c_st;
 }
 
 void Stations::dump(FILE* out) const
