@@ -115,16 +115,101 @@ void StationValues::fill_record(int ana_id, Record& rec)
     });
 }
 
-/*
-void Values::erase(size_t idx)
+std::function<void(DataValues::Ptr)> DataValues::wrap_filter(const core::Query& q, std::function<void(DataValues::Ptr)> dest) const
 {
-    const Value& val = *(*this)[idx];
-    by_station[&val.station].erase(idx);
-    by_levtr[&val.levtr].erase(idx);
-    by_date[val.datetime.date()].erase(idx);
-    value_remove(idx);
+    const Level& level = q.level;
+    if (level != Level())
+    {
+        dest = [dest, level](DataValues::Ptr cur) {
+            if (level.ltype1 != MISSING_INT && level.ltype1 != cur->first.level.ltype1) return;
+            if (level.l1 != MISSING_INT && level.l1 != cur->first.level.l1) return;
+            if (level.ltype2 != MISSING_INT && level.ltype2 != cur->first.level.ltype2) return;
+            if (level.l2 != MISSING_INT && level.l2 != cur->first.level.l2) return;
+            dest(cur);
+        };
+    }
+
+    const Trange& trange = q.trange;
+    if (trange != Trange())
+    {
+        dest = [dest, trange](DataValues::Ptr cur) {
+            if (trange.pind != MISSING_INT && trange.pind != cur->first.trange.pind) return;
+            if (trange.p1 != MISSING_INT && trange.p1 != cur->first.trange.p1) return;
+            if (trange.p2 != MISSING_INT && trange.p2 != cur->first.trange.p2) return;
+            dest(cur);
+        };
+    }
+
+    switch (q.varcodes.size())
+    {
+        case 0: break;
+        case 1:
+        {
+            Varcode code = *q.varcodes.begin();
+            dest = [dest, code](DataValues::Ptr cur) {
+                if (cur->first.code != code) return;
+                dest(cur);
+            };
+            break;
+        }
+        default:
+            dest = [dest, &q](DataValues::Ptr cur) {
+                if (q.varcodes.find(cur->first.code) == q.varcodes.end()) return;
+                dest(cur);
+            };
+            break;
+    }
+
+    if (!q.data_filter.empty())
+    {
+        std::shared_ptr<Varmatch> data_filter(Varmatch::parse(q.data_filter));
+        dest = [this, dest, data_filter](DataValues::Ptr cur) {
+            const Var& var = variables[cur->second];
+            if (!var.isset()) return;
+            if (!(*data_filter)(var)) return;
+            dest(cur);
+        };
+    }
+
+    if (!q.attr_filter.empty())
+    {
+        std::shared_ptr<Varmatch> attr_filter(Varmatch::parse(q.attr_filter));
+        dest = [this, dest, attr_filter](DataValues::Ptr cur) {
+            const Var& var = variables[cur->second];
+            if (!var.isset()) return;
+            const Var* a = var.enqa(attr_filter->code);
+            if (!(*attr_filter)(*a)) return;
+            dest(cur);
+        };
+    }
+
+    return dest;
 }
-*/
+
+void DataValues::query(int ana_id, std::function<void(DataValues::Ptr)> dest) const
+{
+    DataValues::Ptr cur = values.lower_bound(DataValue(ana_id, Datetime(0, 0, 0, 0, 0, 0), Level(0, 0, 0, 0), Trange(0, 0, 0), 0));
+    DataValues::Ptr end = values.upper_bound(DataValue(ana_id, Datetime(), Level(), Trange(), 0xffff));
+    for ( ; cur != end; ++cur)
+    {
+        dest(cur);
+    }
+}
+
+void DataValues::query(int ana_id, const DatetimeRange& dtr, std::function<void(DataValues::Ptr)> dest) const
+{
+    Datetime dtmin = dtr.min;
+    Datetime dtmax = dtr.max;
+    if (dtmin.is_missing())
+        dtmin = Datetime(0, 0, 0, 0, 0, 0);
+
+    DataValues::Ptr cur = values.lower_bound(DataValue(ana_id, dtmin, Level(0, 0, 0, 0), Trange(0, 0, 0), 0));
+    DataValues::Ptr end = values.upper_bound(DataValue(ana_id, dtmax, Level(), Trange(), 0xffff));
+    for ( ; cur != end; ++cur)
+    {
+        dest(cur);
+    }
+}
 
 #if 0
 namespace {

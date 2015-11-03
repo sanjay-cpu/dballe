@@ -248,24 +248,33 @@ void DB::raw_query_station_data(const core::Query& q, std::function<void(Station
     }
 }
 
-#if 0
-void DB::raw_query_data(const core::Query& q, memdb::Results<memdb::Value>& res)
+void DB::raw_query_data(const core::Query& q, std::function<void(DataValues::Ptr)> dest)
 {
-    throw error_unimplemented("querying data is not implemented");
-#if 0
-    // Get a list of stations we can match
-    Results<memdb::Station> res_st(memdb.stations);
-    raw_query_stations(q, res_st);
+    dest = data_values.wrap_filter(q, dest);
 
-    // Get a list of stations we can match
-    Results<LevTr> res_tr(memdb.levtrs);
-    memdb.levtrs.query(q, res_tr);
-
-    // Query variables
-    memdb.values.query(q, res_st, res_tr, res);
-#endif
+    if (q.datetime.is_missing())
+    {
+        if (query_selects_all_stations(q))
+        {
+            for (DataValues::Ptr i = data_values.values.begin(); i != data_values.values.end(); ++i)
+                dest(i);
+        } else {
+            raw_query_stations(q, [this, &dest](int ana_id) {
+                data_values.query(ana_id, dest);
+            });
+        }
+    } else {
+        if (query_selects_all_stations(q))
+        {
+            for (unsigned ana_id = 0; ana_id < stations.size(); ++ana_id)
+                data_values.query(ana_id, q.datetime, dest);
+        } else {
+            raw_query_stations(q, [this, &q, &dest](int ana_id) {
+                data_values.query(ana_id, q.datetime, dest);
+            });
+        }
+    }
 }
-#endif
 
 std::unique_ptr<db::CursorStation> DB::query_stations(const Query& query)
 {
@@ -329,19 +338,16 @@ std::unique_ptr<db::CursorStationData> DB::query_station_data(const Query& query
 
 std::unique_ptr<db::CursorData> DB::query_data(const Query& query)
 {
-    throw error_unimplemented("querying data is not implemented");
-#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
-    Results<Value> res(memdb.values);
-    raw_query_data(q, res);
+    std::vector<DataValues::Ptr> results;
+    raw_query_data(q, [&results](DataValues::Ptr i) { results.push_back(i); });
     if (modifiers & DBA_DB_MODIFIER_BEST)
     {
-        return cursor::createDataBest(*this, modifiers, res);
+        return cursor::createDataBest(*this, modifiers, move(results));
     } else {
-        return cursor::createData(*this, modifiers, res);
+        return cursor::createData(*this, modifiers, move(results));
     }
-#endif
 }
 
 std::unique_ptr<db::CursorSummary> DB::query_summary(const Query& query)

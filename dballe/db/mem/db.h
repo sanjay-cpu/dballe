@@ -39,12 +39,10 @@ protected:
     void raw_query_stations(const core::Query& q, std::function<void(int)> dest);
 
     /// Query station data, returning a list of Value IDs
-    void raw_query_station_data(const core::Query& q, std::function<void(std::map<StationValue, int>::const_iterator i)> dest);
+    void raw_query_station_data(const core::Query& q, std::function<void(StationValues::Ptr)> dest);
 
-#if 0
     /// Query data, returning a list of Value IDs
-    void raw_query_data(const core::Query& q, memdb::Results<memdb::Value>& res);
-#endif
+    void raw_query_data(const core::Query& q, std::function<void(DataValues::Ptr)> dest);
 
 public:
     DB();

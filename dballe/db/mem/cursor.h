@@ -25,9 +25,9 @@ namespace cursor {
 
 std::unique_ptr<db::CursorStation> createStations(mem::DB& db, unsigned modifiers, std::set<int>&& ana_ids);
 std::unique_ptr<db::CursorStationData> createStationData(mem::DB& db, unsigned modifiers, std::vector<StationValues::Ptr>&& results);
+std::unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results);
+std::unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results);
 /*
-std::unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
-std::unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
 std::unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
 */
 

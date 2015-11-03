@@ -470,7 +470,115 @@ struct CursorDataBase : public CursorSorted<Interface, QUEUE>
         rec.seti("context_id", this->cur);
     }
 };
+#endif
 
+struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::Ptr>>
+{
+    using ResultsCursor::ResultsCursor;
+
+    int ana_id() const { return (*this->cur)->first.ana_id; }
+    int get_station_id() const override { return ana_id(); }
+    double get_lat() const override { return db.stations[ana_id()].coords.dlat(); }
+    double get_lon() const override { return db.stations[ana_id()].coords.dlon(); }
+    const char* get_ident(const char* def=0) const override
+    {
+        const Ident& ident = db.stations[ana_id()].ident;
+        if (ident.is_missing())
+            return def;
+        else
+            return (const char*)ident;
+    }
+    const char* get_rep_memo() const override { return db.stations[ana_id()].report.c_str(); }
+    Level get_level() const override { return (*this->cur)->first.level; }
+    Trange get_trange() const override { return (*this->cur)->first.trange; }
+    Datetime get_datetime() const override { return (*this->cur)->first.datetime; }
+    wreport::Varcode get_varcode() const override { return (*this->cur)->first.code; }
+    wreport::Var get_var() const override
+    {
+        return db.data_values.variables[(*this->cur)->second];
+    }
+    int attr_reference_id() const override { return (*this->cur)->second; }
+
+#if 0
+    void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
+    {
+        queue.top()->query_attrs(dest);
+    }
+
+    virtual void attr_insert(const Values& attrs)
+    {
+        queue.top()->attr_insert(attrs);
+    }
+
+    virtual void attr_remove(const AttrList& qcs)
+    {
+        queue.top()->attr_remove(qcs);
+    }
+#endif
+
+    void to_record(Record& rec)
+    {
+        this->to_record_station(db.stations[ana_id()], rec);
+        this->to_record_varcode(get_varcode(), rec);
+        rec.set(db.station_values.variables[(*this->cur)->second]);
+    }
+};
+
+struct MemCursorDataBest : public ResultsCursor<CursorData, std::vector<DataValues::Ptr>>
+{
+    using ResultsCursor::ResultsCursor;
+
+    // TODO: filter results
+
+    int ana_id() const { return (*this->cur)->first.ana_id; }
+    int get_station_id() const override { return ana_id(); }
+    double get_lat() const override { return db.stations[ana_id()].coords.dlat(); }
+    double get_lon() const override { return db.stations[ana_id()].coords.dlon(); }
+    const char* get_ident(const char* def=0) const override
+    {
+        const Ident& ident = db.stations[ana_id()].ident;
+        if (ident.is_missing())
+            return def;
+        else
+            return (const char*)ident;
+    }
+    const char* get_rep_memo() const override { return db.stations[ana_id()].report.c_str(); }
+    Level get_level() const override { return (*this->cur)->first.level; }
+    Trange get_trange() const override { return (*this->cur)->first.trange; }
+    Datetime get_datetime() const override { return (*this->cur)->first.datetime; }
+    wreport::Varcode get_varcode() const override { return (*this->cur)->first.code; }
+    wreport::Var get_var() const override
+    {
+        return db.data_values.variables[(*this->cur)->second];
+    }
+    int attr_reference_id() const override { return (*this->cur)->second; }
+
+#if 0
+    void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
+    {
+        queue.top()->query_attrs(dest);
+    }
+
+    virtual void attr_insert(const Values& attrs)
+    {
+        queue.top()->attr_insert(attrs);
+    }
+
+    virtual void attr_remove(const AttrList& qcs)
+    {
+        queue.top()->attr_remove(qcs);
+    }
+#endif
+
+    void to_record(Record& rec)
+    {
+        this->to_record_station(db.stations[ana_id()], rec);
+        this->to_record_varcode(get_varcode(), rec);
+        rec.set(db.station_values.variables[(*this->cur)->second]);
+    }
+};
+
+#if 0
 struct MemCursorData : public CursorDataBase<CursorData, DataResultQueue>
 {
     MemCursorData(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
@@ -581,17 +689,17 @@ unique_ptr<db::CursorStationData> createStationData(mem::DB& db, unsigned modifi
     return unique_ptr<db::CursorStationData>(new MemCursorStationData(db, modifiers, move(results)));
 }
 
+unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results)
+{
+    return unique_ptr<db::CursorData>(new MemCursorData(db, modifiers, move(results)));
+}
+
+unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results)
+{
+    return unique_ptr<db::CursorData>(new MemCursorDataBest(db, modifiers, move(results)));
+}
+
 #if 0
-unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
-{
-    return unique_ptr<db::CursorData>(new MemCursorData(db, modifiers, res));
-}
-
-unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
-{
-    return unique_ptr<db::CursorData>(new MemCursorDataBest(db, modifiers, res));
-}
-
 unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
 {
     return unique_ptr<db::CursorSummary>(new MemCursorSummary(db, modifiers, res));

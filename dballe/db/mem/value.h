@@ -73,6 +73,8 @@ template<typename Key>
 class ValuesBase
 {
 public:
+    typedef typename std::map<Key, int>::const_iterator Ptr;
+
     /**
      * Append only list of variables.
      *
@@ -197,9 +199,6 @@ public:
 
 struct StationValues : public ValuesBase<StationValue>
 {
-    typedef std::map<StationValue, int>::const_iterator Ptr;
-
-
     void fill_record(int ana_id, Record& rec);
 
     /**
@@ -217,6 +216,22 @@ struct StationValues : public ValuesBase<StationValue>
 
 struct DataValues : public ValuesBase<DataValue>
 {
+    /**
+     * Wrap a consumer for data values with a filter function that filters entries based on q.
+     *
+     * Only q.level, q.trange, q.varcodes, q.data_filter and q.attr_filter will be considered.
+     */
+    std::function<void(DataValues::Ptr)> wrap_filter(const core::Query& q, std::function<void(DataValues::Ptr)> dest) const;
+
+    /**
+     * Query the station values of the given station, with no filter on datetimes
+     */
+    void query(int ana_id, std::function<void(DataValues::Ptr)> dest) const;
+
+    /**
+     * Query the station values of the given station and datetime range
+     */
+    void query(int ana_id, const DatetimeRange& dtr, std::function<void(DataValues::Ptr)> dest) const;
 };
 
 }
