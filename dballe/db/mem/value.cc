@@ -198,7 +198,7 @@ std::function<void(DataValues::Ptr)> DataValues::wrap_filter(const core::Query& 
 
 void DataValues::query(int ana_id, std::function<void(DataValues::Ptr)> dest) const
 {
-    DataValues::Ptr cur = values.lower_bound(DataValue(ana_id, Datetime(0, 0, 0, 0, 0, 0), Level(0, 0, 0, 0), Trange(0, 0, 0), 0));
+    DataValues::Ptr cur = values.lower_bound(DataValue(ana_id, Datetime(0, 1, 1, 0, 0, 0), Level(0, 0, 0, 0), Trange(0, 0, 0), 0));
     DataValues::Ptr end = values.upper_bound(DataValue(ana_id, Datetime(), Level(), Trange(), 0xffff));
     for ( ; cur != end; ++cur)
     {
