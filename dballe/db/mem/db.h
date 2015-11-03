@@ -31,7 +31,7 @@ protected:
 
     /*
      * Order used by station queries: ana_id
-     * Order used by data queries: ana_id, datetime, level, trange, report, var
+     * Order used by data queries: ana_id, datetime, level, trange, var, report
      * Order used by export queries: ana_id, report, datetime, level, trange, var
      */
 

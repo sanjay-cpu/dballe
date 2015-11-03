@@ -2,8 +2,7 @@
 #include "db.h"
 #include "dballe/core/record.h"
 #include "dballe/core/query.h"
-#include <queue>
-#include <stack>
+#include <algorithm>
 #include <sstream>
 
 using namespace std;
@@ -472,11 +471,44 @@ struct CursorDataBase : public CursorSorted<Interface, QUEUE>
 };
 #endif
 
+namespace {
+
+// Order used by data queries: ana_id, datetime, level, trange, report, var
+struct CompareForCursorData
+{
+    const Stations& stations;
+
+    CompareForCursorData(const Stations& stations) : stations(stations) {}
+
+    bool operator() (const DataValues::Ptr& x, const DataValues::Ptr& y) const
+    {
+        const DataValue& dvx = x->first;
+        const DataValue& dvy = y->first;
+        const Station& sx = stations[dvx.ana_id];
+        const Station& sy = stations[dvy.ana_id];
+
+        // Compare station data, but not ana_id, because we are aggregating stations with the same report
+        if (int res = sx.coords.compare(sy.coords)) return res < 0;
+        if (int res = sx.ident.compare(sy.ident)) return res < 0;
+
+        if (int res = dvx.datetime.compare(dvy.datetime)) return res < 0;
+        if (int res = dvx.level.compare(dvy.level)) return res < 0;
+        if (int res = dvx.trange.compare(dvy.trange)) return res < 0;
+        if (int res = dvx.code - dvy.code) return res < 0;
+
+        return sx.report < sy.report;
+    }
+};
+
+}
+
 struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::Ptr>>
 {
-    using ResultsCursor::ResultsCursor;
-
-    // TODO: sort results
+    MemCursorData(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results)
+        : ResultsCursor(db, modifiers, move(results))
+    {
+        std::sort(this->results.begin(), this->results.end(), CompareForCursorData(db.stations));
+    }
 
     int ana_id() const { return (*this->cur)->first.ana_id; }
     int get_station_id() const override { return ana_id(); }
