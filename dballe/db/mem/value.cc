@@ -221,7 +221,7 @@ void DataValues::query(int ana_id, const DatetimeRange& dtr, std::function<void(
     Datetime dtmin = dtr.min;
     Datetime dtmax = dtr.max;
     if (dtmin.is_missing())
-        dtmin = Datetime(0, 0, 0, 0, 0, 0);
+        dtmin = Datetime(0, 1, 1, 0, 0, 0);
 
     DataValues::Ptr cur = values.lower_bound(DataValue(ana_id, dtmin, Level(0, 0, 0, 0), Trange(0, 0, 0), 0));
     DataValues::Ptr end = values.upper_bound(DataValue(ana_id, dtmax, Level(), Trange(), 0xffff));
