@@ -34,9 +34,9 @@ void StationValue::dump(FILE* out, const char* end) const
 int DataValue::compare(const DataValue& v) const
 {
     if (int res = ana_id - v.ana_id) return res;
+    if (int res = datetime.compare(v.datetime)) return res;
     if (int res = level.compare(v.level)) return res;
     if (int res = trange.compare(v.trange)) return res;
-    if (int res = datetime.compare(v.datetime)) return res;
     return code - v.code;
 }
 
