@@ -97,22 +97,20 @@ void DB::insert_data(dballe::DataValues& vals, bool can_replace, bool station_ca
 
 void DB::remove_station_data(const Query& query)
 {
-    throw error_unimplemented("removing station data is not implemented");
-#if 0
-    Results<StationValue> res(memdb.stationvalues);
-    raw_query_station_data(core::Query::downcast(query), res);
-    memdb.remove(res);
-#endif
+    const core::Query& q = core::Query::downcast(query);
+    std::vector<StationValues::Ptr> results;
+    raw_query_station_data(q, [&results](StationValues::Ptr i) { results.push_back(i); });
+    for (const auto& v: results)
+        station_values.remove(v);
 }
 
 void DB::remove(const Query& query)
 {
-    throw error_unimplemented("removing data is not implemented");
-#if 0
-    Results<Value> res(memdb.values);
-    raw_query_data(core::Query::downcast(query), res);
-    memdb.remove(res);
-#endif
+    const core::Query& q = core::Query::downcast(query);
+    std::vector<DataValues::Ptr> results;
+    raw_query_data(q, [&results](DataValues::Ptr i) { results.push_back(i); });
+    for (const auto& v: results)
+        data_values.remove(v);
 }
 
 void DB::remove_all()

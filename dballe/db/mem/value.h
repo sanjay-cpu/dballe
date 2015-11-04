@@ -227,6 +227,16 @@ public:
         return true;
     }
 
+    /**
+     * Remove a value
+     */
+    void remove(Ptr val)
+    {
+        variables[val->second].unset();
+        variables[val->second].clear_attrs();
+        values.erase(val);
+    }
+
     /// Removes a value, by index
     //void erase(size_t idx);
 
