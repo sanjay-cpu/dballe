@@ -190,6 +190,7 @@ std::function<void(DataValues::Ptr)> DataValues::wrap_filter(const core::Query& 
             const Var& var = variables[cur->second];
             if (!var.isset()) return;
             const Var* a = var.enqa(attr_filter->code);
+            if (!a) return;
             if (!(*attr_filter)(*a)) return;
             dest(cur);
         };
