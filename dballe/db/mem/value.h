@@ -101,7 +101,7 @@ public:
 
     wreport::Var& get_checked(int data_id)
     {
-        if (data_id < 0 || data_id > variables.size())
+        if (data_id < 0 || (unsigned)data_id > variables.size())
             wreport::error_notfound::throwf("cannot find variable for data_id %d", data_id);
         return variables[data_id];
     }
