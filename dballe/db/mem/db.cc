@@ -191,9 +191,9 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
     {
         int block = q.block;
         dest = [this, block, dest](int ana_id) {
-            int data_id = station_values.get(ana_id, WR_VAR(0, 1, 1));
+            int data_id = station_values.get(WR_VAR(0, 1, 1), ana_id);
             if (data_id == -1) return;
-            const Var& var = station_values.variables[ana_id];
+            const Var& var = station_values.variables[data_id];
             if (!var.isset()) return;
             if (var.enqi() != block) return;
             dest(ana_id);
@@ -204,9 +204,9 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
     {
         int station = q.station;
         dest = [this, station, dest](int ana_id) {
-            int data_id = station_values.get(ana_id, WR_VAR(0, 1, 2));
+            int data_id = station_values.get(WR_VAR(0, 1, 2), ana_id);
             if (data_id == -1) return;
-            const Var& var = station_values.variables[ana_id];
+            const Var& var = station_values.variables[data_id];
             if (!var.isset()) return;
             if (var.enqi() != station) return;
             dest(ana_id);
