@@ -380,38 +380,31 @@ void DB::attr_insert_data(int data_id, const dballe::Values& attrs)
 }
 void DB::attr_remove_station(int data_id, const db::AttrList& qcs)
 {
-    throw error_unimplemented("removing station attributes is not implemented");
-#if 0
-    ValueBase* v = memdb.stationvalues.get_checked(data_id);
-    if (!v) error_notfound::throwf("no station variable found with data id %d", data_id);
-    v->attr_remove(qcs);
-#endif
+    station_values.attr_remove(data_id, qcs);
 }
 void DB::attr_remove_data(int data_id, const db::AttrList& qcs)
 {
-    throw error_unimplemented("removing data attributes is not implemented");
-#if 0
-    ValueBase* v = memdb.values.get_checked(data_id);
-    if (!v) error_notfound::throwf("no data variable found with data id %d", data_id);
-    v->attr_remove(qcs);
-#endif
+    data_values.attr_remove(data_id, qcs);
 }
 
 bool DB::is_station_variable(int data_id, wreport::Varcode varcode)
 {
-    throw error_unimplemented("is_station_variable is not implemented");
-#if 0
     // FIXME: this is hackish, and has unexpected results if we have data
     // values and station values with the same id_var and id_data. Giving that
     // measured values are usually different than the station values, the case
     // should be rare enough that we can work around the issue in this way
     // rather than breaking the Fortran API.
-    ValueBase* v = memdb.values.get_checked(data_id);
-    if (v && v->var->code() == varcode) return false;
-    v = memdb.stationvalues.get_checked(data_id);
-    if (v && v->var->code() == varcode) return true;
+
+    if (data_id < 0)
+        error_notfound::throwf("variable B%02d%03d not found at data id %d", WR_VAR_X(varcode), WR_VAR_Y(varcode), data_id);
+
+    if ((unsigned)data_id < station_values.variables.size() && station_values.variables[data_id].code() == varcode)
+        return true;
+
+    if ((unsigned)data_id < data_values.variables.size() && data_values.variables[data_id].code() == varcode)
+        return false;
+
     error_notfound::throwf("variable B%02d%03d not found at data id %d", WR_VAR_X(varcode), WR_VAR_Y(varcode), data_id);
-#endif
 }
 
 void DB::dump(FILE* out)
