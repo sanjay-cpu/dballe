@@ -646,7 +646,7 @@ class Tests : public FixtureTestCase<DBFixture>
             db.insert_data(dataset, true, true);
             Values attrs;
             attrs.set("B33007", 50);
-            db.attr_insert_data(dataset.values["B01012"].data_id, attrs);
+            wassert(db.attr_insert_data(dataset.values["B01012"].data_id, attrs));
 
             core::Query q;
             q.latrange.set(12.34560, 12.34560);
@@ -678,7 +678,7 @@ class Tests : public FixtureTestCase<DBFixture>
             update.info.level = q.level;
             update.info.trange = q.trange;
             update.values.set(var.code(), 200);
-            db.insert_data(update, true, false);
+            wassert(db.insert_data(update, true, false));
 
             // Query again
             cur = db.query_data(q);

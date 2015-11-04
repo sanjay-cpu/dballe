@@ -73,8 +73,6 @@ std::map<std::string, int> DB::get_repinfo_priorities()
 
 void DB::insert_station_data(dballe::StationValues& vals, bool can_replace, bool station_can_add)
 {
-    vals.info.ana_id = MISSING_INT;
-
     // Obtain the station
     int ana_id = vals.info.ana_id = stations.obtain(vals.info, station_can_add);
 
@@ -85,8 +83,6 @@ void DB::insert_station_data(dballe::StationValues& vals, bool can_replace, bool
 
 void DB::insert_data(dballe::DataValues& vals, bool can_replace, bool station_can_add)
 {
-    vals.info.ana_id = MISSING_INT;
-
     // Obtain the station
     int ana_id = vals.info.ana_id = stations.obtain(vals.info, station_can_add);
 
