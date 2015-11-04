@@ -180,9 +180,9 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
         Varmatch& vm(*match);
         unique_ptr<Varmatch> match(Varmatch::parse(q.ana_filter));
         dest = [this, &vm, dest](int ana_id) {
-            int data_id = station_values.get(ana_id, vm.code);
+            int data_id = station_values.get(vm.code, ana_id);
             if (data_id == -1) return;
-            if (!vm(station_values.variables[ana_id])) return;
+            if (!vm(station_values.variables[data_id])) return;
             dest(ana_id);
         };
         TRACE("Found ana filter %s\n", q.ana_filter.c_str());
