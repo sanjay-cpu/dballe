@@ -88,14 +88,6 @@ protected:
         rec.set("priority", db.repinfo.get_prio(st.report));
     }
 
-#if 0
-    void to_record_levtr(const memdb::Value& val, Record& rec)
-    {
-        rec.set(val.levtr.level);
-        rec.set(val.levtr.trange);
-    }
-#endif
-
     void to_record_varcode(wreport::Varcode code, Record& rec)
     {
         char bname[7];
@@ -103,15 +95,13 @@ protected:
         rec.setc("var", bname);
     }
 
-#if 0
-    void to_record_value(const memdb::Value& val, Record& rec)
+    void to_record_data_value(const DataValues::Ptr& val, Record& rec)
     {
-        to_record_levtr(val, rec);
-        rec.set(val.datetime);
-        to_record_varcode(val.var->code(), rec);
-        rec.set(*val.var);
+        rec.set(val->first.level);
+        rec.set(val->first.trange);
+        rec.set(val->first.datetime);
+        to_record_varcode(val->first.code, rec);
     }
-#endif
 
     /// Query extra station info and add it to \a rec
     void add_station_info(int ana_id, Record& rec)
@@ -284,7 +274,11 @@ struct MemCursorStationData : public ResultsCursor<CursorStationData, std::vecto
     wreport::Varcode get_varcode() const override { return (*this->cur)->first.code; }
     wreport::Var get_var() const override
     {
-        return db.station_values.variables[(*this->cur)->second];
+        // Return the variable without its attributes
+        const Var& src = db.station_values.variables[(*this->cur)->second];
+        Var res(src.info());
+        res.setval(src);
+        return res;
     }
     int attr_reference_id() const override { return (*this->cur)->second; }
 
@@ -309,7 +303,7 @@ struct MemCursorStationData : public ResultsCursor<CursorStationData, std::vecto
     {
         this->to_record_station(db.stations[ana_id()], rec);
         this->to_record_varcode(get_varcode(), rec);
-        rec.set(db.station_values.variables[(*this->cur)->second]);
+        rec.set(get_var());
     }
 };
 
@@ -529,7 +523,11 @@ struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::
     wreport::Varcode get_varcode() const override { return (*this->cur)->first.code; }
     wreport::Var get_var() const override
     {
-        return db.data_values.variables[(*this->cur)->second];
+        // Return the variable without its attributes
+        const Var& src = db.data_values.variables[(*this->cur)->second];
+        Var res(src.info());
+        res.setval(src);
+        return res;
     }
     int attr_reference_id() const override { return (*this->cur)->second; }
 
@@ -553,8 +551,10 @@ struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::
     void to_record(Record& rec)
     {
         this->to_record_station(db.stations[ana_id()], rec);
-        this->to_record_varcode(get_varcode(), rec);
-        rec.set(db.station_values.variables[(*this->cur)->second]);
+        rec.clear_vars();
+        this->to_record_data_value(*(this->cur), rec);
+        rec.set(get_var());
+        rec.seti("context_id", (*this->cur)->second);
     }
 };
 

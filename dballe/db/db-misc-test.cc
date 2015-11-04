@@ -100,7 +100,7 @@ class Tests : public FixtureTestCase<DBFixture>
             } catch (error_consistency& e) {
                 wassert(actual(e.what()).contains("insert a station entry when it is forbidden"));
             } catch (error_notfound& e) {
-                wassert(actual(e.what()).contains("station not found"));
+                wassert(actual(e.what()).contains("not found"));
             }
             wassert(actual(oldf.data["synop"].info.ana_id) == MISSING_INT);
             wassert(actual(oldf.data["synop"].values["B01011"].data_id) == MISSING_INT);
@@ -155,16 +155,16 @@ class Tests : public FixtureTestCase<DBFixture>
                 wassert(actual(cur->next()).istrue());
                 wassert(actual(cur->get_lat()) == 12.34560);
                 wassert(actual(cur->get_lon()) == 76.54320);
-                wassert(actual(cur->get_rep_memo()) == "synop");
+                wassert(actual(cur->get_rep_memo()) == "metar");
                 wassert(actual((void*)cur->get_ident()) == (void*)0);
-                wassert(actual(cur).station_keys_match(oldf.stations["synop"].info));
+                wassert(actual(cur).station_keys_match(oldf.stations["metar"].info));
 
                 wassert(actual(cur->next()).istrue());
                 wassert(actual(cur->get_lat()) == 12.34560);
                 wassert(actual(cur->get_lon()) == 76.54320);
-                wassert(actual(cur->get_rep_memo()) == "metar");
+                wassert(actual(cur->get_rep_memo()) == "synop");
                 wassert(actual((void*)cur->get_ident()) == (void*)0);
-                wassert(actual(cur).station_keys_match(oldf.stations["metar"].info));
+                wassert(actual(cur).station_keys_match(oldf.stations["synop"].info));
             } else {
                 // V5 and V6 have one station entry (lat, lon, ident)
                 wassert(actual(cur->remaining()) == 1);

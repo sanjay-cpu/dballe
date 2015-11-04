@@ -22,11 +22,12 @@ int StationValue::compare(const StationValue& v) const
     return code - v.code;
 }
 
-void StationValue::dump(FILE* out) const
+void StationValue::dump(FILE* out, const char* end) const
 {
     stringstream buf;
     buf << ana_id
-        << "\t" << varcode_format(code);
+        << "\t" << varcode_format(code)
+        << end;
     fputs(buf.str().c_str(), out);
 }
 
@@ -39,14 +40,15 @@ int DataValue::compare(const DataValue& v) const
     return code - v.code;
 }
 
-void DataValue::dump(FILE* out) const
+void DataValue::dump(FILE* out, const char* end) const
 {
     stringstream buf;
     buf << ana_id
         << "\t" << level
         << "\t" << trange
         << "\t" << datetime
-        << "\t" << varcode_format(code);
+        << "\t" << varcode_format(code)
+        << end;
     fputs(buf.str().c_str(), out);
 }
 

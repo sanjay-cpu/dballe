@@ -364,39 +364,19 @@ std::unique_ptr<db::CursorSummary> DB::query_summary(const Query& query)
 
 void DB::attr_query_station(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest)
 {
-    throw error_unimplemented("querying station attributes is not implemented");
-#if 0
-    ValueBase* v = memdb.stationvalues.get_checked(data_id);
-    if (!v) error_notfound::throwf("no station variable found with data id %d", data_id);
-    v->query_attrs(dest);
-#endif
+    station_values.query_attrs(data_id, dest);
 }
 void DB::attr_query_data(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest)
 {
-    throw error_unimplemented("querying data attributes is not implemented");
-#if 0
-    ValueBase* v = memdb.values.get_checked(data_id);
-    if (!v) error_notfound::throwf("no data variable found with data id %d", data_id);
-    v->query_attrs(dest);
-#endif
+    data_values.query_attrs(data_id, dest);
 }
 void DB::attr_insert_station(int data_id, const dballe::Values& attrs)
 {
-    throw error_unimplemented("inserting station attributes is not implemented");
-#if 0
-    ValueBase* v = memdb.stationvalues.get_checked(data_id);
-    if (!v) error_notfound::throwf("no station variable found with data id %d", data_id);
-    v->attr_insert(attrs);
-#endif
+    station_values.attr_insert(data_id, attrs);
 }
 void DB::attr_insert_data(int data_id, const dballe::Values& attrs)
 {
-    throw error_unimplemented("inserting data attributes is not implemented");
-#if 0
-    ValueBase* v = memdb.values.get_checked(data_id);
-    if (!v) error_notfound::throwf("no data variable found with data id %d", data_id);
-    v->attr_insert(attrs);
-#endif
+    data_values.attr_insert(data_id, attrs);
 }
 void DB::attr_remove_station(int data_id, const db::AttrList& qcs)
 {

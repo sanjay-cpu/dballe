@@ -2,7 +2,9 @@
 #define DBA_DB_MEM_VALUE_H
 
 #include <dballe/types.h>
+#include <dballe/var.h>
 #include <dballe/core/defs.h>
+#include <dballe/core/values.h>
 #include <wreport/var.h>
 #include <memory>
 #include <vector>
@@ -43,7 +45,7 @@ struct StationValue
 
     bool operator<(const StationValue& v) const { return compare(v) < 0; }
 
-    void dump(FILE* out) const;
+    void dump(FILE* out, const char* end="\n") const;
 };
 
 /// A value measured by a station
@@ -69,7 +71,7 @@ struct DataValue
 
     bool operator<(const DataValue& v) const { return compare(v) < 0; }
 
-    void dump(FILE* out) const;
+    void dump(FILE* out, const char* end="\n") const;
 };
 
 /// Storage and index for measured values
@@ -95,6 +97,48 @@ public:
     {
         variables.clear();
         values.clear();
+    }
+
+    wreport::Var& get_checked(int data_id)
+    {
+        if (data_id < 0 || data_id > variables.size())
+            wreport::error_notfound::throwf("cannot find variable for data_id %d", data_id);
+        return variables[data_id];
+    }
+
+    const wreport::Var& get_checked(int data_id) const
+    {
+        if (data_id < 0 || data_id > variables.size())
+            wreport::error_notfound::throwf("cannot find variable for data_id %d", data_id);
+        return variables[data_id];
+    }
+
+    void query_attrs(int data_id, std::function<void(std::unique_ptr<wreport::Var>)> dest)
+    {
+        const wreport::Var& var = get_checked(data_id);
+        for (const wreport::Var* a = var.next_attr(); a != NULL; a = a->next_attr())
+            dest(newvar(*a));
+    }
+
+    void attr_insert(int data_id, const Values& attrs)
+    {
+        wreport::Var& var = get_checked(data_id);
+        for (const auto& i: attrs)
+            var.seta(*i.second.var);
+    }
+
+    void attr_remove(int data_id, const std::vector<wreport::Varcode>& qcs)
+    {
+        wreport::Var& var = get_checked(data_id);
+
+        // FIXME: if qcs is empty, remove all?
+        if (qcs.empty())
+        {
+            var.clear_attrs();
+        } else {
+            for (const auto& i: qcs)
+                var.unseta(i);
+        }
     }
 
     /**
@@ -195,7 +239,8 @@ public:
         for (const auto& i: values)
         {
             fprintf(out, " %4u: ", i.second);
-            i.first.dump(out);
+            i.first.dump(out, "\t");
+            variables[i.second].print(out);
             // TODO: print attrs
         }
     };
