@@ -481,7 +481,7 @@ struct CompareForCursorData
         const Station& sx = stations[dvx.ana_id];
         const Station& sy = stations[dvy.ana_id];
 
-        // Compare station data, but not ana_id, because we are aggregating stations with the same report
+        // Compare station data, but not ana_id, because we are aggregating stations with different report
         if (int res = sx.coords.compare(sy.coords)) return res < 0;
         if (int res = sx.ident.compare(sy.ident)) return res < 0;
 
@@ -558,13 +558,71 @@ struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::
     }
 };
 
-struct MemCursorDataBest : public ResultsCursor<CursorData, std::vector<DataValues::Ptr>>
+namespace {
+
+struct DataBestKey
+{
+    const Station* st;
+    Datetime datetime;
+    Level level;
+    Trange trange;
+    Varcode code;
+    DataBestKey(const Station* st, const DataValues::Ptr& val)
+        : st(st), datetime(val->first.datetime),
+          level(val->first.level), trange(val->first.trange),
+          code(val->first.code)
+    {
+    }
+
+    int compare(const DataBestKey& v) const
+    {
+        // Compare station data, but not ana_id, because we are aggregating stations with different report
+        if (int res = st->coords.compare(v.st->coords)) return res < 0;
+        if (int res = st->ident.compare(v.st->ident)) return res < 0;
+        if (int res = datetime.compare(v.datetime)) return res;
+        if (int res = level.compare(v.level)) return res;
+        if (int res = trange.compare(v.trange)) return res;
+        return code - v.code;
+    }
+
+    bool operator<(const DataBestKey& v) const { return compare(v) < 0; }
+};
+
+std::map<DataBestKey, DataValues::Ptr> best_index(mem::DB& db, const std::vector<DataValues::Ptr>& results)
+{
+    std::map<DataBestKey, DataValues::Ptr> best;
+    for (const auto& val: results)
+    {
+        const Station& val_st = db.stations[val->first.ana_id];
+        DataBestKey key(&val_st, val);
+        std::map<DataBestKey, DataValues::Ptr>::iterator i = best.find(key);
+        if (i == best.end())
+        {
+            best.insert(make_pair(key, val));
+            continue;
+        }
+        int prio_existing = db.repinfo.get_prio(db.stations[i->second->first.ana_id].report);
+        int prio_new = db.repinfo.get_prio(val_st.report);
+        if (prio_new > prio_existing)
+            i->second = val;
+    }
+    return best;
+}
+
+}
+
+// Order used by data queries: ana_id, datetime, level, trange, var (and aggregated by report keeping the one with max priority)
+struct MemCursorDataBest : public ResultsCursor<CursorData, std::map<DataBestKey, DataValues::Ptr>>
 {
     using ResultsCursor::ResultsCursor;
 
-    // TODO: filter results
+    MemCursorDataBest(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results)
+        : ResultsCursor(db, modifiers, best_index(db, results))
+    {
+    }
 
-    int ana_id() const { return (*this->cur)->first.ana_id; }
+    int ana_id() const { return this->cur->second->first.ana_id; }
+    int data_id() const { return this->cur->second->second; }
     int get_station_id() const override { return ana_id(); }
     double get_lat() const override { return db.stations[ana_id()].coords.dlat(); }
     double get_lon() const override { return db.stations[ana_id()].coords.dlon(); }
@@ -577,15 +635,19 @@ struct MemCursorDataBest : public ResultsCursor<CursorData, std::vector<DataValu
             return (const char*)ident;
     }
     const char* get_rep_memo() const override { return db.stations[ana_id()].report.c_str(); }
-    Level get_level() const override { return (*this->cur)->first.level; }
-    Trange get_trange() const override { return (*this->cur)->first.trange; }
-    Datetime get_datetime() const override { return (*this->cur)->first.datetime; }
-    wreport::Varcode get_varcode() const override { return (*this->cur)->first.code; }
+    Level get_level() const override { return this->cur->first.level; }
+    Trange get_trange() const override { return this->cur->first.trange; }
+    Datetime get_datetime() const override { return this->cur->first.datetime; }
+    wreport::Varcode get_varcode() const override { return this->cur->first.code; }
     wreport::Var get_var() const override
     {
-        return db.data_values.variables[(*this->cur)->second];
+        // Return the variable without its attributes
+        const Var& src = db.data_values.variables[data_id()];
+        Var res(src.info());
+        res.setval(src);
+        return res;
     }
-    int attr_reference_id() const override { return (*this->cur)->second; }
+    int attr_reference_id() const override { return data_id(); }
 
 #if 0
     void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
@@ -607,8 +669,10 @@ struct MemCursorDataBest : public ResultsCursor<CursorData, std::vector<DataValu
     void to_record(Record& rec)
     {
         this->to_record_station(db.stations[ana_id()], rec);
-        this->to_record_varcode(get_varcode(), rec);
-        rec.set(db.station_values.variables[(*this->cur)->second]);
+        rec.clear_vars();
+        this->to_record_data_value(this->cur->second, rec);
+        rec.set(get_var());
+        rec.seti("context_id", this->cur->second->second);
     }
 };
 
