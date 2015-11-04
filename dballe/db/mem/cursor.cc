@@ -478,7 +478,7 @@ struct SummaryKey
 
     int compare(const SummaryKey& v) const
     {
-        if (int res = ana_id - v.ana_id) return res < 0;
+        if (int res = ana_id - v.ana_id) return res;
         if (int res = level.compare(v.level)) return res;
         if (int res = trange.compare(v.trange)) return res;
         return code - v.code;
