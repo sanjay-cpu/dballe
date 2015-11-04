@@ -378,8 +378,8 @@ struct DataBestKey
     int compare(const DataBestKey& v) const
     {
         // Compare station data, but not ana_id, because we are aggregating stations with different report
-        if (int res = st->coords.compare(v.st->coords)) return res < 0;
-        if (int res = st->ident.compare(v.st->ident)) return res < 0;
+        if (int res = st->coords.compare(v.st->coords)) return res;
+        if (int res = st->ident.compare(v.st->ident)) return res;
         if (int res = datetime.compare(v.datetime)) return res;
         if (int res = level.compare(v.level)) return res;
         if (int res = trange.compare(v.trange)) return res;
