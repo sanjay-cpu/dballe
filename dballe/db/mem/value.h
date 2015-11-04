@@ -261,6 +261,8 @@ struct StationValues : public ValuesBase<StationValue>
     void fill_record(int ana_id, Record& rec) const;
     void fill_msg(int ana_id, msg::Context& ctx) const;
 
+    bool has_variables_for(int ana_id) const;
+
     /**
      * Wrap a consumer for station values with a filter function that filters entries based on q.
      *

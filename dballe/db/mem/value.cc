@@ -127,6 +127,13 @@ void StationValues::fill_msg(int ana_id, msg::Context& ctx) const
     });
 }
 
+bool StationValues::has_variables_for(int ana_id) const
+{
+    StationValues::Ptr cur = values.lower_bound(StationValue(ana_id, 0));
+    if (cur == values.end()) return false;
+    return cur->second == ana_id;
+}
+
 std::function<void(DataValues::Ptr)> DataValues::wrap_filter(const core::Query& q, std::function<void(DataValues::Ptr)> dest) const
 {
     const Level& level = q.level;

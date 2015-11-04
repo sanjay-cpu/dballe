@@ -414,16 +414,102 @@ void DB::dump(FILE* out)
     data_values.dump(out);
 }
 
-void DB::import_msg(const Message& msg, const char* repmemo, int flags)
+void DB::import_msg(const Message& msg_gen, const char* force_report, int flags)
 {
-    throw error_unimplemented("import_msg is not implemented");
-#if 0
-    memdb.insert(Msg::downcast(msg),
-            flags | DBA_IMPORT_OVERWRITE,
-            flags | DBA_IMPORT_FULL_PSEUDOANA,
-            flags | DBA_IMPORT_ATTRS,
-            repmemo);
-#endif
+    const Msg& msg = Msg::downcast(msg_gen);
+    bool replace = flags | DBA_IMPORT_OVERWRITE;
+    bool with_station_info = flags | DBA_IMPORT_FULL_PSEUDOANA;
+    bool with_attrs = flags | DBA_IMPORT_ATTRS;
+
+    const msg::Context* l_ana = msg.find_context(Level(), Trange());
+    if (!l_ana)
+        throw error_consistency("cannot import into the database a message without station information");
+
+    // Coordinates
+    Coords coord;
+    if (const Var* var = l_ana->find_by_id(DBA_MSG_LATITUDE))
+        coord.lat = var->enqi();
+    else
+        throw error_notfound("latitude not found in data to import");
+    if (const Var* var = l_ana->find_by_id(DBA_MSG_LONGITUDE))
+        coord.lon = var->enqi();
+    else
+        throw error_notfound("longitude not found in data to import");
+
+    // Report code
+    string report;
+    if (force_report != NULL)
+        report = force_report;
+    else if (const Var* var = msg.get_rep_memo_var())
+        report = var->enqc();
+    else
+        report = Msg::repmemo_from_type(msg.type);
+
+    int station_id;
+    if (const Var* var = l_ana->find_by_id(DBA_MSG_IDENT))
+    {
+        // Mobile station
+        station_id = stations.obtain(report, coord, var->enqc(), true);
+    }
+    else
+    {
+        // Fixed station
+        station_id = stations.obtain(report, coord, Ident(), true);
+    }
+
+    //const Station& station = stations[station_id];
+
+    if (with_station_info || station_values.has_variables_for(station_id))
+    {
+        // Insert the rest of the station information
+        for (const auto& srcvar : l_ana->data)
+        {
+            Varcode code = srcvar->code();
+            // Do not import datetime in the station info context
+            if (code >= WR_VAR(0, 4, 1) && code <= WR_VAR(0, 4, 6))
+                continue;
+
+            unique_ptr<Var> var;
+            if (with_attrs)
+                var.reset(new Var(*srcvar));
+            else
+            {
+                var.reset(new Var(srcvar->info()));
+                var->setval(*srcvar);
+            }
+            station_values.insert(std::move(var), replace, station_id);
+        }
+    }
+
+    // Fill up the common context information for the rest of the data
+
+    // Date and time
+    if (msg.get_datetime().is_missing())
+        throw error_notfound("date/time informations not found (or incomplete) in message to insert");
+
+    // Insert the rest of the data
+    for (size_t i = 0; i < msg.data.size(); ++i)
+    {
+        const msg::Context& ctx = *msg.data[i];
+        bool is_ana_level = ctx.level == Level() && ctx.trange == Trange();
+        // Skip the station info level
+        if (is_ana_level) continue;
+
+        for (const auto& srcvar : ctx.data)
+        {
+            if (not srcvar->isset()) continue;
+
+            unique_ptr<Var> var;
+            if (with_attrs)
+                var.reset(new Var(*srcvar));
+            else
+            {
+                var.reset(new Var(srcvar->info()));
+                var->setval(*srcvar);
+            }
+            data_values.insert(std::move(var), replace, station_id, msg.get_datetime(), ctx.level, ctx.trange);
+        }
+    }
 }
 
 namespace {
