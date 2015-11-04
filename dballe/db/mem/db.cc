@@ -168,7 +168,7 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
             return;
 
         // Chain a filter on report_whitelist
-        dest = [this, report_whitelist, &dest](int ana_id) {
+        dest = [this, report_whitelist, dest](int ana_id) {
             if (report_whitelist.find(stations[ana_id].report) == report_whitelist.end())
                 return;
             dest(ana_id);
@@ -181,7 +181,7 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
         match = Varmatch::parse(q.ana_filter);
         Varmatch& vm(*match);
         unique_ptr<Varmatch> match(Varmatch::parse(q.ana_filter));
-        dest = [this, &vm, &dest](int ana_id) {
+        dest = [this, &vm, dest](int ana_id) {
             int data_id = station_values.get(ana_id, vm.code);
             if (data_id == -1) return;
             if (!vm(station_values.variables[ana_id])) return;
@@ -192,7 +192,7 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
     if (q.block != MISSING_INT)
     {
         int block = q.block;
-        dest = [this, block, &dest](int ana_id) {
+        dest = [this, block, dest](int ana_id) {
             int data_id = station_values.get(ana_id, WR_VAR(0, 1, 1));
             if (data_id == -1) return;
             const Var& var = station_values.variables[ana_id];
@@ -205,7 +205,7 @@ void DB::raw_query_stations(const core::Query& q, std::function<void(int)> dest)
     if (q.station != MISSING_INT)
     {
         int station = q.station;
-        dest = [this, station, &dest](int ana_id) {
+        dest = [this, station, dest](int ana_id) {
             int data_id = station_values.get(ana_id, WR_VAR(0, 1, 2));
             if (data_id == -1) return;
             const Var& var = station_values.variables[ana_id];
