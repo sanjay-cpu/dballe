@@ -110,55 +110,10 @@ protected:
     }
 };
 
-#if 0
+
 /**
- * Implement next() for cursors that can be implemented on top of a sorted
- * collection offering size(), empty(), pop() and top()
+ * Cursor implementation that iterates over a C++ collection
  */
-template<typename Interface, typename SortedResults>
-struct CursorSorted : public Base<Interface>
-{
-    typename SortedResults::value_type cur;
-    SortedResults results;
-    bool first = true;
-
-    bool next() override
-    {
-        if (this->count == 0 || results.empty())
-            return false;
-
-        if (first)
-            first = false;
-        else
-            results.pop();
-
-        --(this->count);
-        if (results.empty())
-            return false;
-
-        this->cur = results.top();
-        return true;
-    }
-
-    void discard_rest() override
-    {
-        // We cannot call results.clear()
-        // FIXME: we can probably get rid of discard_rest() and do proper
-        // review and destructor work. This is only used to flush DB cursors to
-        // avoid shutting down a partial query for some databases. But really,
-        // is it needed at all?
-        this->count = 0;
-    }
-
-    template<typename T>
-    CursorSorted(mem::DB& db, unsigned modifiers, T& res)
-        : Base<Interface>(db, modifiers), results(db, res)
-    {
-        this->count = results.size();
-    }
-};
-#endif
-
 template<typename Interface, typename Results>
 struct ResultsCursor : public Base<Interface>
 {
@@ -199,6 +154,10 @@ struct ResultsCursor : public Base<Interface>
     }
 };
 
+
+/**
+ * CursorStation implementation
+ */
 struct MemCursorStations : public ResultsCursor<CursorStation, std::set<int>>
 {
     using ResultsCursor::ResultsCursor;
@@ -223,37 +182,10 @@ struct MemCursorStations : public ResultsCursor<CursorStation, std::set<int>>
     }
 };
 
-#if 0
-struct CompareStationData
-{
-    const ValueStorage<memdb::StationValue>& values;
 
-    CompareStationData(const ValueStorage<memdb::StationValue>& values) : values(values) {}
-
-    // Return an inverse comparison, so that the priority queue gives us the
-    // smallest items first
-    bool operator() (size_t ix, size_t iy) const
-    {
-        const memdb::StationValue& x = *values[ix];
-        const memdb::StationValue& y = *values[iy];
-        if (int res = x.station.coords.compare(y.station.coords)) return res > 0;
-        if (x.station.ident < y.station.ident) return false;
-        if (x.station.ident > y.station.ident) return true;
-        if (int res = x.var->code() - y.var->code()) return res > 0;
-        return x.station.report > y.station.report;
-    }
-};
-
-struct StationValueResultQueue : public priority_queue<size_t, vector<size_t>, CompareStationData>
-{
-    StationValueResultQueue(DB&, Results<memdb::StationValue>& res)
-        : priority_queue<size_t, vector<size_t>, CompareStationData>(CompareStationData(res.values))
-    {
-        res.copy_indices_to(stl::pusher(*this));
-    }
-};
-#endif
-
+/**
+ * CursorStationData implementation
+ */
 struct MemCursorStationData : public ResultsCursor<CursorStationData, std::vector<StationValues::Ptr>>
 {
     using ResultsCursor::ResultsCursor;
@@ -282,23 +214,6 @@ struct MemCursorStationData : public ResultsCursor<CursorStationData, std::vecto
     }
     int attr_reference_id() const override { return (*this->cur)->second; }
 
-#if 0
-    void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
-    {
-        queue.top()->query_attrs(dest);
-    }
-
-    virtual void attr_insert(const Values& attrs)
-    {
-        queue.top()->attr_insert(attrs);
-    }
-
-    virtual void attr_remove(const AttrList& qcs)
-    {
-        queue.top()->attr_remove(qcs);
-    }
-#endif
-
     void to_record(Record& rec)
     {
         this->to_record_station(db.stations[ana_id()], rec);
@@ -308,103 +223,6 @@ struct MemCursorStationData : public ResultsCursor<CursorStationData, std::vecto
 };
 
 #if 0
-struct CompareData
-{
-    const ValueStorage<memdb::Value>& values;
-
-    CompareData(const ValueStorage<memdb::Value>& values) : values(values) {}
-
-    // Return an inverse comparison, so that the priority queue gives us the
-    // smallest items first
-    bool operator() (size_t x, size_t y) const
-    {
-        const memdb::Value& vx = *values[x];
-        const memdb::Value& vy = *values[y];
-
-        if (int res = vx.station.coords.compare(vy.station.coords)) return res > 0;
-        if (vx.station.ident < vy.station.ident) return false;
-        if (vx.station.ident > vy.station.ident) return true;
-
-        if (int res = vx.datetime.compare(vy.datetime)) return res > 0;
-        if (int res = vx.levtr.level.compare(vy.levtr.level)) return res > 0;
-        if (int res = vx.levtr.trange.compare(vy.levtr.trange)) return res > 0;
-
-        if (int res = vx.var->code() - vy.var->code()) return res > 0;
-
-        return vx.station.report > vy.station.report;
-    }
-};
-
-struct DataResultQueue : public priority_queue<size_t, vector<size_t>, CompareData>
-{
-    DataResultQueue(DB&, Results<memdb::Value>& res)
-        : priority_queue<size_t, vector<size_t>, CompareData>(CompareData(res.values))
-    {
-        res.copy_indices_to(stl::pusher(*this));
-    }
-};
-
-struct DataBestResultQueue : public map<DataBestKey, size_t>
-{
-    typedef size_t value_type;
-    const ValueStorage<memdb::Value>& values;
-    std::map<std::string, int> prios;
-
-    DataBestResultQueue(DB& db, Results<memdb::Value>& res)
-        : values(res.values), prios(db.get_repinfo_priorities())
-    {
-        res.copy_indices_to(stl::pusher(*this));
-    }
-
-    void dump(FILE* out) const
-    {
-        for (const_iterator i = begin(); i != end(); ++i)
-        {
-            const memdb::Value& k = i->first.value();
-            const memdb::Value& v = *values[i->second];
-
-            stringstream buf;
-            buf << k.station.coords
-                << "\t" << k.station.ident
-                << "\t" << k.levtr.level
-                << "\t" << k.levtr.trange
-                << "\t" << k.datetime
-                << ": " << v.station.report
-                << "\t";
-            v.var->print_without_attrs(buf);
-            fputs(buf.str().c_str(), out);
-        }
-    }
-
-    /**
-     * Add val to the map, but in case of conflict it only keeps the value with
-     * the highest priority.
-     */
-    void push(size_t val)
-    {
-        iterator i = find(DataBestKey(values, val));
-        if (i == end())
-            insert(make_pair(DataBestKey(values, val), val));
-        else
-        {
-            const memdb::Value& vx = *values[i->second];
-            const memdb::Value& vy = *values[val];
-            if (prios[vx.station.report] < prios[vy.station.report])
-                i->second = val;
-        }
-    }
-
-    size_t top() const
-    {
-        return begin()->second;
-    }
-
-    void pop()
-    {
-        erase(begin());
-    }
-};
-
 template<typename Interface, typename QUEUE>
 struct CursorDataBase : public CursorSorted<Interface, QUEUE>
 {
@@ -531,23 +349,6 @@ struct MemCursorData : public ResultsCursor<CursorData, std::vector<DataValues::
     }
     int attr_reference_id() const override { return (*this->cur)->second; }
 
-#if 0
-    void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
-    {
-        queue.top()->query_attrs(dest);
-    }
-
-    virtual void attr_insert(const Values& attrs)
-    {
-        queue.top()->attr_insert(attrs);
-    }
-
-    virtual void attr_remove(const AttrList& qcs)
-    {
-        queue.top()->attr_remove(qcs);
-    }
-#endif
-
     void to_record(Record& rec)
     {
         this->to_record_station(db.stations[ana_id()], rec);
@@ -649,23 +450,6 @@ struct MemCursorDataBest : public ResultsCursor<CursorData, std::map<DataBestKey
     }
     int attr_reference_id() const override { return data_id(); }
 
-#if 0
-    void query_attrs(function<void(unique_ptr<Var>&&)> dest) override
-    {
-        queue.top()->query_attrs(dest);
-    }
-
-    virtual void attr_insert(const Values& attrs)
-    {
-        queue.top()->attr_insert(attrs);
-    }
-
-    virtual void attr_remove(const AttrList& qcs)
-    {
-        queue.top()->attr_remove(qcs);
-    }
-#endif
-
     void to_record(Record& rec)
     {
         this->to_record_station(db.stations[ana_id()], rec);
@@ -676,22 +460,117 @@ struct MemCursorDataBest : public ResultsCursor<CursorData, std::map<DataBestKey
     }
 };
 
-#if 0
-struct MemCursorData : public CursorDataBase<CursorData, DataResultQueue>
+namespace {
+
+struct SummaryKey
 {
-    MemCursorData(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
-        : CursorDataBase<CursorData, DataResultQueue>(db, modifiers, res)
+    int ana_id;
+    Level level;
+    Trange trange;
+    Varcode code;
+
+    SummaryKey(const DataValues::Ptr& val)
+        : ana_id(val->first.ana_id),
+          level(val->first.level), trange(val->first.trange),
+          code(val->first.code)
     {
+    }
+
+    int compare(const SummaryKey& v) const
+    {
+        if (int res = ana_id - v.ana_id) return res < 0;
+        if (int res = level.compare(v.level)) return res;
+        if (int res = trange.compare(v.trange)) return res;
+        return code - v.code;
+    }
+
+    bool operator<(const SummaryKey& v) const { return compare(v) < 0; }
+};
+
+struct SummaryStats
+{
+    size_t count;
+    Datetime dtmin;
+    Datetime dtmax;
+
+    SummaryStats(const Datetime& dt) : count(1), dtmin(dt), dtmax(dt) {}
+
+    void extend(const Datetime& dt)
+    {
+        if (count == 0)
+        {
+            dtmin = dtmax = dt;
+        } else {
+            if (dt < dtmin)
+                dtmin = dt;
+            else if (dt > dtmax)
+                dtmax = dt;
+        }
+        ++count;
     }
 };
 
-struct MemCursorDataBest : public CursorDataBase<CursorData, DataBestResultQueue>
+std::map<SummaryKey, SummaryStats> summary_index(const std::vector<DataValues::Ptr>& results)
 {
-    MemCursorDataBest(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
-        : CursorDataBase<CursorData, DataBestResultQueue>(db, modifiers, res)
+    std::map<SummaryKey, SummaryStats> summary;
+    for (const auto& val: results)
+    {
+        SummaryKey key(val);
+        std::map<SummaryKey, SummaryStats>::iterator i = summary.find(key);
+        if (i == summary.end())
+            summary.insert(make_pair(key, SummaryStats(val->first.datetime)));
+        else
+            i->second.extend(val->first.datetime);
+    }
+    return summary;
+}
+
+}
+
+struct MemCursorSummary : public ResultsCursor<CursorSummary, std::map<SummaryKey, SummaryStats>>
+{
+    using ResultsCursor::ResultsCursor;
+
+    MemCursorSummary(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results)
+        : ResultsCursor(db, modifiers, summary_index(results))
     {
     }
+
+    int ana_id() const { return this->cur->first.ana_id; }
+    int get_station_id() const override { return ana_id(); }
+    double get_lat() const override { return db.stations[ana_id()].coords.dlat(); }
+    double get_lon() const override { return db.stations[ana_id()].coords.dlon(); }
+    const char* get_ident(const char* def=0) const override
+    {
+        const Ident& ident = db.stations[ana_id()].ident;
+        if (ident.is_missing())
+            return def;
+        else
+            return (const char*)ident;
+    }
+    const char* get_rep_memo() const override { return db.stations[ana_id()].report.c_str(); }
+    Level get_level() const override { return this->cur->first.level; }
+    Trange get_trange() const override { return this->cur->first.trange; }
+    wreport::Varcode get_varcode() const override { return this->cur->first.code; }
+    DatetimeRange get_datetimerange() const override { return DatetimeRange(this->cur->second.dtmin, this->cur->second.dtmax); }
+    size_t get_count() const override { return this->cur->second.count; }
+
+    void to_record(Record& rec)
+    {
+        this->to_record_station(db.stations[ana_id()], rec);
+        rec.clear_vars();
+        rec.set(this->cur->first.level);
+        rec.set(this->cur->first.trange);
+        to_record_varcode(this->cur->first.code, rec);
+        if (modifiers & DBA_DB_MODIFIER_SUMMARY_DETAILS)
+        {
+            rec.set(get_datetimerange());
+            rec.seti("context_id", get_count());
+        }
+    }
 };
+
+#if 0
 
 struct MemCursorSummary : public Base<CursorSummary>
 {
@@ -797,51 +676,10 @@ unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, std::
     return unique_ptr<db::CursorData>(new MemCursorDataBest(db, modifiers, move(results)));
 }
 
-#if 0
-unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, Results<memdb::Value>& res)
+unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results)
 {
-    return unique_ptr<db::CursorSummary>(new MemCursorSummary(db, modifiers, res));
+    return unique_ptr<db::CursorSummary>(new MemCursorSummary(db, modifiers, move(results)));
 }
-#endif
-
-#if 0
-DataBestKey::DataBestKey(const memdb::ValueStorage<memdb::Value>& values, size_t idx)
-    : values(values), idx(idx) {}
-
-bool DataBestKey::operator<(const DataBestKey& o) const
-{
-    // Normal sort here, but we ignore report so that two values which only
-    // differ in report are considered the same
-    const memdb::Value& vx = value();
-    const memdb::Value& vy = o.value();
-
-    if (int res = vx.station.coords.compare(vy.station.coords)) return res < 0;
-    if (vx.station.ident < vy.station.ident) return true;
-    if (vx.station.ident > vy.station.ident) return false;
-
-    if (int res = vx.datetime.compare(vy.datetime)) return res < 0;
-    if (int res = vx.levtr.level.compare(vy.levtr.level)) return res < 0;
-    if (int res = vx.levtr.trange.compare(vy.levtr.trange)) return res < 0;
-
-    if (int res = vx.var->code() - vy.var->code()) return res < 0;
-
-    // They are the same
-    return false;
-}
-
-std::ostream& operator<<(std::ostream& out, const DataBestKey& k)
-{
-    const memdb::Value& v = k.value();
-
-    out << v.station.coords
-        << "." << v.station.ident
-        << ":" << v.levtr.level
-        << ":" << v.levtr.trange
-        << ":" << v.datetime
-        << ":" << varcode_format(v.var->code());
-    return out;
-}
-#endif
 
 #if 0
 unsigned CursorStations::test_iterate(FILE* dump)

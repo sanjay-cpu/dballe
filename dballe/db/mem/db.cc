@@ -350,14 +350,11 @@ std::unique_ptr<db::CursorData> DB::query_data(const Query& query)
 
 std::unique_ptr<db::CursorSummary> DB::query_summary(const Query& query)
 {
-    throw error_unimplemented("querying summaries is not implemented");
-#if 0
     const core::Query& q = core::Query::downcast(query);
     unsigned int modifiers = q.get_modifiers();
-    Results<Value> res(memdb.values);
-    raw_query_data(q, res);
-    return cursor::createSummary(*this, modifiers, res);
-#endif
+    std::vector<DataValues::Ptr> results;
+    raw_query_data(q, [&results](DataValues::Ptr i) { results.push_back(i); });
+    return cursor::createSummary(*this, modifiers, move(results));
 }
 
 void DB::attr_query_station(int data_id, std::function<void(std::unique_ptr<wreport::Var>)>&& dest)

@@ -27,28 +27,7 @@ std::unique_ptr<db::CursorStation> createStations(mem::DB& db, unsigned modifier
 std::unique_ptr<db::CursorStationData> createStationData(mem::DB& db, unsigned modifiers, std::vector<StationValues::Ptr>&& results);
 std::unique_ptr<db::CursorData> createData(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results);
 std::unique_ptr<db::CursorData> createDataBest(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results);
-/*
-std::unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, memdb::Results<memdb::Value>& res);
-*/
-
-#if 0
-/**
- * Wrapper around a Value index that compares so that all values from which the
- * best report should be selected appear to be the same.
- *
- * This is exported only so that it can be unit tested.
- */
-struct DataBestKey
-{
-    const memdb::ValueStorage<memdb::Value>& values;
-    size_t idx;
-
-    DataBestKey(const memdb::ValueStorage<memdb::Value>& values, size_t idx);
-    const memdb::Value& value() const { return *values[idx]; }
-    bool operator<(const DataBestKey& o) const;
-};
-std::ostream& operator<<(std::ostream& out, const DataBestKey& k);
-#endif
+std::unique_ptr<db::CursorSummary> createSummary(mem::DB& db, unsigned modifiers, std::vector<DataValues::Ptr>&& results);
 
 }
 
