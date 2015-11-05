@@ -136,6 +136,15 @@ bool StationValues::has_variables_for(int ana_id) const
 
 std::function<void(DataValues::Ptr)> DataValues::wrap_filter(const core::Query& q, std::function<void(DataValues::Ptr)> dest) const
 {
+    if (q.data_id != MISSING_INT)
+    {
+        int data_id = q.data_id;
+        dest = [dest, data_id](DataValues::Ptr cur) {
+            if (cur->second != data_id) return;
+            dest(cur);
+        };
+    }
+
     const Level& level = q.level;
     if (level != Level())
     {
