@@ -138,6 +138,26 @@ add_method("missing_repmemo", [](Fixture& f) {
     wassert(actual(msgs.size()) == 0u);
 });
 
+add_method("issue81", [](Fixture& f) {
+    std::unique_ptr<msg::Importer> importer = msg::Importer::create(File::BUFR);
+    auto file = dballe::tests::open_test_data("bufr/issue81.bufr", File::BUFR);
+    while (BinaryMessage raw = file->read())
+    {
+        auto msgs = importer->from_binary(raw);
+        f.db->import_msgs(msgs, nullptr, 0);
+    }
+    core::Query query;
+    std::vector<Datetime> datetimes;
+    f.db->export_msgs(query, [&](std::unique_ptr<Message>&& msg) {
+        datetimes.push_back(msg->get_datetime());
+        return true;
+    });
+    wassert(actual(datetimes.size()) == 161);
+
+    for (unsigned i = 0; i < datetimes.size() - 1; ++i)
+        wassert(actual(datetimes[i]) < datetimes[i + 1]);
+});
+
 }
 
 Tests tg1("db_export_mem", nullptr, db::MEM);
