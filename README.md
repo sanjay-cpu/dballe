@@ -6,7 +6,7 @@ Build status
 
 | Environment | Status |
 | ----------- | ------ |
-| Fedora 24   | [![Build Status](https://badges.herokuapp.com/travis/ARPA-SIMC/dballe?branch=travis&env=DOCKER_IMAGE=fedora:24&label=fedora24)](https://travis-ci.org/ARPA-SIMC/dballe) |
+| CentOS 7    | [![Build Status](https://badges.herokuapp.com/travis/ARPA-SIMC/dballe?branch=travis&env=DOCKER_IMAGE=centos:7&label=fedora24)](https://travis-ci.org/ARPA-SIMC/dballe) |
 | Fedora 25   | [![Build Status](https://badges.herokuapp.com/travis/ARPA-SIMC/dballe?branch=travis&env=DOCKER_IMAGE=fedora:25&label=fedora25)](https://travis-ci.org/ARPA-SIMC/dballe) |
 | Fedora 26   | [![Build Status](https://badges.herokuapp.com/travis/ARPA-SIMC/dballe?branch=travis&env=DOCKER_IMAGE=fedora:26&label=fedora26)](https://travis-ci.org/ARPA-SIMC/dballe) |
 
