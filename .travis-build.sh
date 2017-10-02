@@ -11,7 +11,9 @@ then
     yum install -y epel-release
     yum install -y @buildsys-build
     yum install -y yum-utils
+    yum install -y yum-plugin-copr
     yum install -y git
+    yum copr enable -y pat1/simc
 elif [[ $image =~ ^fedora: ]]
 then
     pkgcmd="dnf"
