@@ -91,7 +91,16 @@ class CommonDBTestMixin(DballeDBMixin):
             var = result.var(result["var"])
             self.assertEqual(var.code, expected[idx]["code"])
             self.assertEqual(var.enq(), expected[idx]["val"])
-            self.assertFalse(result.attrs(result["var"]))
+            attrs = result.attrs(result["var"])
+            self.assertIsNotNone(attrs)
+            if var.code == "B01011":
+                self.assertEqual(len(attrs.keys()), 2)
+                self.assertTrue("B33007" in attr)
+                self.assertEqual(attr["B33007"], 50)
+                self.assertTrue("B33036" in attr)
+                self.assertEqual(attr["B33036"], 75)
+            else:
+                self.assertEqual(result.attrs(result["var"]), {})
 
     def testQueryDataLimit(self):
         query = dballe.Record()
