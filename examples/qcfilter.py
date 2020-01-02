@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import sys
-import logging
 
 import dballe
-
-
-logger = logging.getLogger(__name__)
 
 
 def pass_qc(attrs):
@@ -46,9 +42,6 @@ if __name__ == '__main__':
                         help="BUFR file")
 
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.DEBUG,
-                        handlers=[logging.StreamHandler()])
 
     if not args.inputfiles:
         inputfiles = [sys.stdin]
