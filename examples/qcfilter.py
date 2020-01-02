@@ -62,6 +62,7 @@ if __name__ == '__main__':
         with importer.from_file(f) as fp:
             for msgs in fp:
                 for msg in msgs:
+                    count_vars = 0
                     new_msg = dballe.Message("generic")
                     new_msg.set_named("year", dballe.var("B04001", msg.datetime.year))
                     new_msg.set_named("month", dballe.var("B04002", msg.datetime.month))
@@ -89,6 +90,7 @@ if __name__ == '__main__':
                             continue
 
                         new_msg.set(data["level"], data["trange"], v)
+                        count_vars += 1
 
                     for data in msg.query_station_data({"query": "attrs"}):
                         variable = data["variable"]
@@ -99,4 +101,5 @@ if __name__ == '__main__':
 
                         new_msg.set(dballe.Level(), dballe.Trange(), v)
 
-                    sys.stdout.buffer.write(exporter.to_binary(new_msg))
+                    if count_vars > 0:
+                        sys.stdout.buffer.write(exporter.to_binary(new_msg))
