@@ -1,3 +1,9 @@
+# New in version 8.12
+
+* C++ api changed: `CursorMessage::get_message` has been unified with
+  `CursorMessage::detach_message` and now returns a `std::shared_ptr<Message>`.
+  `CursorMessage::detach_message` has been removed. (#171)
+
 # New in version 8.11
 
 * Fix errors after failed starting of transactions and raise clear errors if using a db connection in a forked process (#210)
