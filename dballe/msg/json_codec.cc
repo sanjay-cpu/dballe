@@ -15,7 +15,7 @@ using core::JSONParseException;
 
 struct JSONMsgReader : public core::JSONReader
 {
-    std::unique_ptr<impl::Message> msg;
+    std::shared_ptr<impl::Message> msg;
     std::unique_ptr<impl::msg::Context> ctx;
     std::unique_ptr<wreport::Var> var;
     std::unique_ptr<wreport::Var> attr;
@@ -58,7 +58,7 @@ struct JSONMsgReader : public core::JSONReader
 
     JSONMsgReader() {}
 
-    bool parse_msgs(const std::string& buf, std::function<bool(std::unique_ptr<impl::Message>)> cb)
+    bool parse_msgs(const std::string& buf, std::function<bool(std::shared_ptr<impl::Message>)> cb)
     {
         std::stringstream in(buf);
         while (!in.eof())
@@ -121,7 +121,7 @@ struct JSONMsgReader : public core::JSONReader
     {
         if (state.empty())
         {
-            msg.reset(new impl::Message);
+            msg = std::make_shared<impl::Message>();
             state.push(MSG);
         }
         else
@@ -432,7 +432,7 @@ JsonImporter::JsonImporter(const dballe::ImporterOptions& opts)
 
 JsonImporter::~JsonImporter() {}
 
-bool JsonImporter::foreach_decoded(const BinaryMessage& msg, std::function<bool(std::unique_ptr<dballe::Message>)> dest) const
+bool JsonImporter::foreach_decoded(const BinaryMessage& msg, std::function<bool(std::shared_ptr<dballe::Message>)> dest) const
 {
     JSONMsgReader jsonreader;
     return jsonreader.parse_msgs(msg.data, dest);
