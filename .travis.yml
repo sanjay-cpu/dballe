@@ -4,6 +4,9 @@ sudo: required
 
 services:
     - docker
+arch:
+    - amd64
+    - ppc64le
 
 script:
     - docker run -v ${TRAVIS_BUILD_DIR}:/root/src/ -w /root/src/ $DOCKER_IMAGE /bin/bash .travis-build.sh $DOCKER_IMAGE
